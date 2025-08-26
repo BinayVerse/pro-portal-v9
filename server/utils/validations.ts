@@ -40,16 +40,16 @@ export const SignupValidation = z.object({
     (val) => getPasswordRegex().test(val),
     'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'
   ),
-  contactNumber: z.string().max(20, 'Phone number too long').optional(),
-  organizationName: z.string().min(1, 'Organization name is required').max(255, 'Organization name too long')
+  wpNumber: z.string().max(20, 'Phone number too long').optional(),
+  companyName: z.string().min(1, 'Company name is required').max(255, 'Company name too long')
 })
 
 // Google signup validation schema
 export const GoogleSignupValidation = z.object({
   name: z.string().min(1, 'Name is required').max(255, 'Name too long'),
   email: z.string().email('Invalid email format').max(255, 'Email too long'),
-  contactNumber: z.string().max(20, 'Phone number too long').optional(),
-  organizationName: z.string().min(1, 'Organization name is required').max(255, 'Organization name too long')
+  wpNumber: z.string().max(20, 'Phone number too long').optional(),
+  companyName: z.string().min(1, 'Company name is required').max(255, 'Company name too long')
 })
 
 export type SigninData = z.infer<typeof SigninValidation>
