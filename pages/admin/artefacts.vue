@@ -402,6 +402,8 @@
 </template>
 
 <script setup lang="ts">
+import { formatDateTime } from '~/utils'
+
 // Using admin layout
 definePageMeta({
   layout: 'admin',
@@ -482,7 +484,7 @@ const artefacts = ref([
     size: '2.3 MB',
     status: 'processed',
     uploadedBy: 'Sarah Johnson',
-    lastUpdated: '1/15/2024',
+    lastUpdated: formatDateTime(new Date('2024-01-15T14:30:00')),
     artefact: 'Employee Handbook 2024.pdf',
   },
   {
@@ -494,7 +496,7 @@ const artefacts = ref([
     size: '1.6 MB',
     status: 'processing',
     uploadedBy: 'Mike Chen',
-    lastUpdated: '1/10/2024',
+    lastUpdated: formatDateTime(new Date('2024-01-10T09:15:00')),
     artefact: 'Q4 Financial Report.docx',
   },
   {
@@ -506,7 +508,7 @@ const artefacts = ref([
     size: '512.0 kB',
     status: 'processed',
     uploadedBy: 'Emily Davis',
-    lastUpdated: '1/8/2024',
+    lastUpdated: formatDateTime(new Date('2024-01-08T16:45:00')),
     artefact: 'Product Specifications.md',
   },
   {
@@ -518,7 +520,7 @@ const artefacts = ref([
     size: '3.1 MB',
     status: 'processed',
     uploadedBy: 'Alex Rodriguez',
-    lastUpdated: '1/20/2024',
+    lastUpdated: formatDateTime(new Date('2024-01-20T11:20:00')),
     artefact: 'Customer Data.csv',
   },
 ])
