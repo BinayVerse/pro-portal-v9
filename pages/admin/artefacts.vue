@@ -212,7 +212,7 @@
             :class="getStatusColor(row.status)"
           >
             <div class="w-1.5 h-1.5 rounded-full mr-1" :class="getStatusDotColor(row.status)"></div>
-            {{ row.status }}
+            {{ capitalizeStatus(row.status) }}
           </span>
         </template>
 
@@ -270,9 +270,7 @@
         <div class="flex items-center justify-between mb-6 pb-4 border-b border-dark-600">
           <div>
             <h3 class="text-xl font-semibold text-white">Upload New Artefact</h3>
-            <p class="text-sm text-gray-400 mt-1">
-              Add files to your artefact collection for AI processing
-            </p>
+            <p class="text-sm text-gray-400 mt-1">Add files to your artefact collection for AI processing</p>
           </div>
           <UButton
             @click="showUploadModal = false"
@@ -297,19 +295,20 @@
               :class="{
                 'border-blue-500 bg-blue-500/10': isDragOver,
                 'border-green-500 bg-green-500/10': state.file,
-                'hover:border-dark-500': !isDragOver && !state.file,
+                'hover:border-dark-500': !isDragOver && !state.file
               }"
             >
               <div v-if="!state.file" class="py-4">
-                <UIcon
-                  name="heroicons:cloud-arrow-up"
-                  class="w-16 h-16 text-gray-400 mx-auto mb-4"
-                />
+                <UIcon name="heroicons:cloud-arrow-up" class="w-16 h-16 text-gray-400 mx-auto mb-4" />
                 <p class="text-lg text-gray-300 mb-2">
                   <span class="font-medium">Click to upload</span> or drag and drop
                 </p>
-                <p class="text-sm text-gray-400 mb-4">PDF, Word, TXT, CSV, Markdown, Images</p>
-                <p class="text-xs text-gray-500">Maximum file size: 50MB</p>
+                <p class="text-sm text-gray-400 mb-4">
+                  PDF, Word, TXT, CSV, Markdown, Images
+                </p>
+                <p class="text-xs text-gray-500">
+                  Maximum file size: 10MB
+                </p>
                 <input
                   ref="fileInput"
                   type="file"
@@ -323,9 +322,7 @@
                   <UIcon name="heroicons:document" class="w-10 h-10 text-green-400" />
                   <div class="text-left">
                     <p class="text-white font-medium truncate max-w-md">{{ state.file.name }}</p>
-                    <p class="text-sm text-gray-400">
-                      {{ formatFileSize(state.file.size) }} • {{ getFileType(state.file.name) }}
-                    </p>
+                    <p class="text-sm text-gray-400">{{ formatFileSize(state.file.size) }} • {{ getFileType(state.file.name) }}</p>
                   </div>
                 </div>
                 <UButton
@@ -347,7 +344,7 @@
                 { label: 'HR Policy', value: 'HR Policy' },
                 { label: 'Financial', value: 'Financial' },
                 { label: 'Technical', value: 'Technical' },
-                { label: 'Analytics', value: 'Analytics' },
+                { label: 'Analytics', value: 'Analytics' }
               ]"
               placeholder="Select category"
               size="lg"
@@ -358,7 +355,7 @@
           <UFormGroup label="Description (Optional)" name="description">
             <UTextarea
               v-model="state.description"
-              placeholder="Short description (max 100 characters)"
+              placeholder="Brief description (max 100 characters)"
               :maxlength="100"
               :rows="3"
               size="lg"
@@ -373,7 +370,7 @@
               @click="showUploadModal = false"
               :disabled="isUploading"
               variant="outline"
-              color="red"
+              color="gray"
               size="lg"
               class="min-w-[120px]"
             >
@@ -440,7 +437,7 @@
                 class="w-1.5 h-1.5 rounded-full mr-1"
                 :class="getStatusDotColor(selectedArtefact?.status)"
               ></div>
-              {{ selectedArtefact?.status }}
+              {{ capitalizeStatus(selectedArtefact?.status || '') }}
             </span>
           </div>
         </div>
@@ -675,6 +672,10 @@ const getStatusDotColor = (status: string) => {
   return colors[status] || 'bg-gray-400'
 }
 
+const capitalizeStatus = (status: string) => {
+  return status.charAt(0).toUpperCase() + status.slice(1)
+}
+
 const viewArtefact = (artefact: any) => {
   console.log('View artefact:', artefact)
 }
@@ -738,24 +739,14 @@ const handleFileSelect = (event: Event) => {
 }
 
 const setFile = (file: File) => {
-  // Validate file size (50MB limit)
-  if (file.size > 50 * 1024 * 1024) {
-    alert('File size must be less than 50MB')
+  // Validate file size (10MB limit)
+  if (file.size > 10 * 1024 * 1024) {
+    alert('File size must be less than 10MB')
     return
   }
 
   // Validate file type
-  const allowedTypes = [
-    'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'text/plain',
-    'text/csv',
-    'text/markdown',
-    'image/png',
-    'image/jpeg',
-    'image/jpg',
-  ]
+  const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'text/csv', 'text/markdown', 'image/png', 'image/jpeg', 'image/jpg']
   if (!allowedTypes.includes(file.type) && !file.name.endsWith('.md')) {
     alert('Unsupported file type. Please upload PDF, Word, TXT, CSV, Markdown, or Image files.')
     return
@@ -802,7 +793,7 @@ const onSubmit = async (event: FormSubmitEvent<Schema>) => {
     uploadProgress.value = 0
 
     // Create new artefact object
-    const newId = Math.max(...artefacts.value.map((a) => a.id)) + 1
+    const newId = Math.max(...artefacts.value.map(a => a.id)) + 1
     const newArt = {
       id: newId,
       name: event.data.file.name,
@@ -831,7 +822,7 @@ const onSubmit = async (event: FormSubmitEvent<Schema>) => {
 
         // After 2 seconds, mark as processed
         setTimeout(() => {
-          const uploadedArtefact = artefacts.value.find((a) => a.id === newId)
+          const uploadedArtefact = artefacts.value.find(a => a.id === newId)
           if (uploadedArtefact) {
             uploadedArtefact.status = 'processed'
           }
@@ -850,6 +841,7 @@ const onSubmit = async (event: FormSubmitEvent<Schema>) => {
     }
 
     console.log('Upload started for:', newArt.name)
+
   } catch (error) {
     console.error('Upload failed:', error)
     alert('Upload failed. Please try again.')
