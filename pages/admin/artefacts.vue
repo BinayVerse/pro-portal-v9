@@ -164,22 +164,22 @@
           tr: {
             base: '',
             selected: 'bg-dark-700/50',
-            active: ''
+            active: '',
           },
           th: {
             base: 'text-left rtl:text-right',
             padding: 'px-6 py-3',
             color: 'text-gray-400',
             font: 'font-medium text-xs',
-            size: 'text-xs'
+            size: 'text-xs',
           },
           td: {
             base: 'whitespace-nowrap',
             padding: 'px-6 py-4',
             color: 'text-gray-300',
             font: '',
-            size: 'text-sm'
-          }
+            size: 'text-sm',
+          },
         }"
       >
         <!-- Artefact column with icon and description -->
@@ -211,10 +211,7 @@
             class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full"
             :class="getStatusColor(row.status)"
           >
-            <div
-              class="w-1.5 h-1.5 rounded-full mr-1"
-              :class="getStatusDotColor(row.status)"
-            ></div>
+            <div class="w-1.5 h-1.5 rounded-full mr-1" :class="getStatusDotColor(row.status)"></div>
             {{ row.status }}
           </span>
         </template>
@@ -246,7 +243,7 @@
               @click="downloadArtefact(row)"
               class="text-green-400 hover:text-green-300 transition-colors"
             >
-              <UIcon name="heroicons:arrow-down-tray" class="w-4 h-4" />
+              <UIcon name="heroicons:arrow-path-rounded-square" class="w-4 h-4" />
             </button>
             <button
               @click="deleteArtefact(row)"
@@ -260,71 +257,143 @@
     </div>
 
     <!-- Upload Modal -->
-    <div
-      v-if="showUploadModal"
-      class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+    <UModal
+      v-model="showUploadModal"
+      prevent-close
+      class="custom-modal"
+      :ui="{ width: isViewMode ? '' : 'custom-width' }"
+      :fullscreen="isViewMode"
+      :disabled="disabledControl"
+      :class="{ 'disabled-modal': disabledControl }"
     >
-      <div class="bg-dark-800 rounded-lg border border-dark-700 p-6 w-full max-w-md mx-4">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-semibold text-white">Upload Artefact</h3>
-          <button @click="showUploadModal = false" class="text-gray-400 hover:text-white">
-            <UIcon name="heroicons:x-mark" class="w-5 h-5" />
-          </button>
+      <div class="p-8">
+        <div class="flex items-center justify-between mb-6 pb-4 border-b border-dark-600">
+          <div>
+            <h3 class="text-xl font-semibold text-white">Upload New Artefact</h3>
+            <p class="text-sm text-gray-400 mt-1">
+              Add files to your artefact collection for AI processing
+            </p>
+          </div>
+          <UButton
+            @click="showUploadModal = false"
+            variant="ghost"
+            icon="heroicons:x-mark"
+            color="gray"
+            size="md"
+            :disabled="isUploading"
+            class="hover:bg-dark-700"
+          />
         </div>
 
-        <form @submit.prevent="uploadArtefact" class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-300 mb-1">File</label>
-            <input
-              type="file"
-              required
-              class="w-full px-3 py-2 border border-dark-700 rounded-lg bg-dark-900 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <UForm :schema="schema" :state="state" @submit="onSubmit" class="space-y-6">
+          <!-- Drag and Drop File Upload -->
+          <UFormGroup label="File" name="file" required>
+            <div
+              @drop.prevent="handleDrop"
+              @dragover.prevent="handleDragOver"
+              @dragenter.prevent="handleDragEnter"
+              @dragleave.prevent="handleDragLeave"
+              class="border-2 border-dashed border-dark-600 rounded-lg p-8 text-center transition-colors relative"
+              :class="{
+                'border-blue-500 bg-blue-500/10': isDragOver,
+                'border-green-500 bg-green-500/10': state.file,
+                'hover:border-dark-500': !isDragOver && !state.file,
+              }"
+            >
+              <div v-if="!state.file" class="py-4">
+                <UIcon
+                  name="heroicons:cloud-arrow-up"
+                  class="w-16 h-16 text-gray-400 mx-auto mb-4"
+                />
+                <p class="text-lg text-gray-300 mb-2">
+                  <span class="font-medium">Click to upload</span> or drag and drop
+                </p>
+                <p class="text-sm text-gray-400 mb-4">PDF, Word, TXT, CSV, Markdown, Images</p>
+                <p class="text-xs text-gray-500">Maximum file size: 50MB</p>
+                <input
+                  ref="fileInput"
+                  type="file"
+                  class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  accept=".pdf,.doc,.docx,.txt,.csv,.md,.png,.jpg,.jpeg"
+                  @change="handleFileSelect"
+                />
+              </div>
+              <div v-else class="flex items-center justify-between py-4">
+                <div class="flex items-center space-x-4">
+                  <UIcon name="heroicons:document" class="w-10 h-10 text-green-400" />
+                  <div class="text-left">
+                    <p class="text-white font-medium truncate max-w-md">{{ state.file.name }}</p>
+                    <p class="text-sm text-gray-400">
+                      {{ formatFileSize(state.file.size) }} • {{ getFileType(state.file.name) }}
+                    </p>
+                  </div>
+                </div>
+                <UButton
+                  @click="removeFile"
+                  variant="ghost"
+                  icon="heroicons:x-mark"
+                  color="red"
+                  size="md"
+                />
+              </div>
+            </div>
+          </UFormGroup>
+
+          <!-- Category Selection -->
+          <UFormGroup label="Category" name="category" required>
+            <USelect
+              v-model="state.category"
+              :options="[
+                { label: 'HR Policy', value: 'HR Policy' },
+                { label: 'Financial', value: 'Financial' },
+                { label: 'Technical', value: 'Technical' },
+                { label: 'Analytics', value: 'Analytics' },
+              ]"
+              placeholder="Select category"
+              size="lg"
             />
-          </div>
+          </UFormGroup>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-300 mb-1">Category</label>
-            <select
-              v-model="newDocument.category"
-              required
-              class="w-full px-3 py-2 border border-dark-700 rounded-lg bg-dark-900 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Select Category</option>
-              <option value="HR Policy">HR Policy</option>
-              <option value="Financial">Financial</option>
-              <option value="Technical">Technical</option>
-              <option value="Analytics">Analytics</option>
-            </select>
-          </div>
+          <!-- Description on separate row -->
+          <UFormGroup label="Description (Optional)" name="description">
+            <UTextarea
+              v-model="state.description"
+              placeholder="Short description (max 100 characters)"
+              :maxlength="100"
+              :rows="3"
+              size="lg"
+            />
+            <p class="text-xs text-gray-400 mt-1">
+              {{ state.description?.length || 0 }}/100 characters
+            </p>
+          </UFormGroup>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-300 mb-1">Description</label>
-            <textarea
-              v-model="newDocument.description"
-              rows="3"
-              class="w-full px-3 py-2 border border-dark-700 rounded-lg bg-dark-900 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Brief description of the artefact..."
-            ></textarea>
-          </div>
-
-          <div class="flex space-x-3 pt-4">
-            <button
-              type="submit"
-              class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors"
-            >
-              Upload
-            </button>
-            <button
-              type="button"
+          <div class="flex justify-end space-x-3 pt-6 border-t border-dark-600 mt-6">
+            <UButton
               @click="showUploadModal = false"
-              class="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg transition-colors"
+              :disabled="isUploading"
+              variant="outline"
+              color="red"
+              size="lg"
+              class="min-w-[120px]"
             >
               Cancel
-            </button>
+            </UButton>
+            <UButton
+              type="submit"
+              :loading="isUploading"
+              :disabled="isUploading"
+              color="primary"
+              size="lg"
+              class="min-w-[120px]"
+              icon="heroicons:cloud-arrow-up"
+            >
+              {{ isUploading ? 'Uploading...' : 'Upload Artefact' }}
+            </UButton>
           </div>
-        </form>
+        </UForm>
       </div>
-    </div>
+    </UModal>
 
     <!-- Summary Modal -->
     <UModal v-model="showSummaryModal" :ui="{ width: 'sm:max-w-2xl' }">
@@ -380,19 +449,22 @@
           <h4 class="text-sm font-medium text-white mb-3">AI-Generated Summary</h4>
           <div class="bg-dark-700 rounded-lg p-4">
             <p class="text-gray-300 text-sm leading-relaxed">
-              {{ selectedArtefact?.status === 'processed'
-                ? `This ${selectedArtefact?.type} document contains comprehensive information about ${selectedArtefact?.category.toLowerCase()} matters. The AI analysis reveals key insights and important data points that can be leveraged for decision-making processes. Based on the document structure and content patterns, this artefact provides valuable resource material for organizational operations and strategic planning.`
-                : 'Summary is not available yet. The document is still being processed by our AI system. Please check back once the processing is complete.'
+              {{
+                selectedArtefact?.status === 'processed'
+                  ? `This ${selectedArtefact?.type} document contains comprehensive information about ${selectedArtefact?.category.toLowerCase()} matters. The AI analysis reveals key insights and important data points that can be leveraged for decision-making processes. Based on the document structure and content patterns, this artefact provides valuable resource material for organizational operations and strategic planning.`
+                  : 'Summary is not available yet. The document is still being processed by our AI system. Please check back once the processing is complete.'
               }}
             </p>
           </div>
         </div>
 
         <div class="flex justify-end mt-6 space-x-3">
-          <UButton @click="showSummaryModal = false" variant="ghost" color="gray">
-            Close
-          </UButton>
-          <UButton @click="downloadArtefact(selectedArtefact)" icon="heroicons:arrow-down-tray" color="primary">
+          <UButton @click="showSummaryModal = false" variant="ghost" color="gray"> Close </UButton>
+          <UButton
+            @click="downloadArtefact(selectedArtefact)"
+            icon="heroicons:arrow-down-tray"
+            color="primary"
+          >
             Download
           </UButton>
         </div>
@@ -403,12 +475,23 @@
 
 <script setup lang="ts">
 import { formatDateTime } from '~/utils'
+import { z } from 'zod'
+import type { FormSubmitEvent } from '#ui/types'
 
 // Using admin layout
 definePageMeta({
   layout: 'admin',
   middleware: 'auth',
 })
+
+// Form validation schema
+const schema = z.object({
+  file: z.any().refine((file) => file !== null, 'File is required'),
+  category: z.string().min(1, 'Category is required'),
+  description: z.string().max(100, 'Description must be 100 characters or less').optional(),
+})
+
+type Schema = z.output<typeof schema>
 
 // Reactive data
 const searchQuery = ref('')
@@ -418,11 +501,23 @@ const selectedStatus = ref('')
 const showUploadModal = ref(false)
 const showSummaryModal = ref(false)
 const selectedArtefact = ref(null)
+const uploadProgress = ref(0)
+const isUploading = ref(false)
 
-const newArtefact = ref({
+// Form state for UForm
+const state = reactive({
+  file: null as File | null,
   category: '',
   description: '',
 })
+
+// Drag and drop state
+const isDragOver = ref(false)
+const dragCounter = ref(0)
+
+// Modal control states
+const isViewMode = ref(false)
+const disabledControl = ref(false)
 
 // Table columns configuration
 const columns = [
@@ -602,14 +697,163 @@ const viewSummary = (artefact: any) => {
   showSummaryModal.value = true
 }
 
-const uploadArtefact = () => {
-  console.log('Upload artefact:', newArtefact.value)
-  showUploadModal.value = false
+// File input ref
+const fileInput = ref<HTMLInputElement>()
 
-  // Reset form
-  newArtefact.value = {
-    category: '',
-    description: '',
+// Drag and drop handlers
+const handleDragEnter = (e: DragEvent) => {
+  e.preventDefault()
+  dragCounter.value++
+  isDragOver.value = true
+}
+
+const handleDragLeave = (e: DragEvent) => {
+  e.preventDefault()
+  dragCounter.value--
+  if (dragCounter.value === 0) {
+    isDragOver.value = false
+  }
+}
+
+const handleDragOver = (e: DragEvent) => {
+  e.preventDefault()
+}
+
+const handleDrop = (e: DragEvent) => {
+  e.preventDefault()
+  isDragOver.value = false
+  dragCounter.value = 0
+
+  const files = e.dataTransfer?.files
+  if (files && files[0]) {
+    setFile(files[0])
+  }
+}
+
+const handleFileSelect = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  if (target.files && target.files[0]) {
+    setFile(target.files[0])
+  }
+}
+
+const setFile = (file: File) => {
+  // Validate file size (50MB limit)
+  if (file.size > 50 * 1024 * 1024) {
+    alert('File size must be less than 50MB')
+    return
+  }
+
+  // Validate file type
+  const allowedTypes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'text/plain',
+    'text/csv',
+    'text/markdown',
+    'image/png',
+    'image/jpeg',
+    'image/jpg',
+  ]
+  if (!allowedTypes.includes(file.type) && !file.name.endsWith('.md')) {
+    alert('Unsupported file type. Please upload PDF, Word, TXT, CSV, Markdown, or Image files.')
+    return
+  }
+
+  state.file = file
+}
+
+const removeFile = () => {
+  state.file = null
+  if (fileInput.value) {
+    fileInput.value.value = ''
+  }
+}
+
+const getFileType = (fileName: string) => {
+  const extension = fileName.split('.').pop()?.toLowerCase()
+  const typeMap: Record<string, string> = {
+    pdf: 'PDF',
+    doc: 'Word',
+    docx: 'Word',
+    txt: 'TXT',
+    csv: 'CSV',
+    md: 'Markdown',
+    png: 'Image',
+    jpg: 'Image',
+    jpeg: 'Image',
+  }
+  return typeMap[extension || ''] || 'Unknown'
+}
+
+const formatFileSize = (bytes: number) => {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'kB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+}
+
+// UForm submission handler
+const onSubmit = async (event: FormSubmitEvent<Schema>) => {
+  try {
+    isUploading.value = true
+    uploadProgress.value = 0
+
+    // Create new artefact object
+    const newId = Math.max(...artefacts.value.map((a) => a.id)) + 1
+    const newArt = {
+      id: newId,
+      name: event.data.file.name,
+      description: event.data.description || 'No description provided',
+      category: event.data.category,
+      type: getFileType(event.data.file.name),
+      size: formatFileSize(event.data.file.size),
+      status: 'processing' as const,
+      uploadedBy: 'Current User', // Would be from auth context
+      lastUpdated: formatDateTime(new Date()),
+      artefact: event.data.file.name,
+    }
+
+    // Simulate upload progress
+    const progressInterval = setInterval(() => {
+      uploadProgress.value += 10
+      if (uploadProgress.value >= 100) {
+        clearInterval(progressInterval)
+
+        // Add to artefacts list
+        artefacts.value.unshift(newArt)
+
+        // Reset upload state
+        isUploading.value = false
+        showUploadModal.value = false
+
+        // After 2 seconds, mark as processed
+        setTimeout(() => {
+          const uploadedArtefact = artefacts.value.find((a) => a.id === newId)
+          if (uploadedArtefact) {
+            uploadedArtefact.status = 'processed'
+          }
+        }, 2000)
+      }
+    }, 200) // Slower for better UX
+
+    // Reset form
+    state.file = null
+    state.category = ''
+    state.description = ''
+
+    // Reset file input
+    if (fileInput.value) {
+      fileInput.value.value = ''
+    }
+
+    console.log('Upload started for:', newArt.name)
+  } catch (error) {
+    console.error('Upload failed:', error)
+    alert('Upload failed. Please try again.')
+    isUploading.value = false
   }
 }
 
