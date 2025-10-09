@@ -1,8 +1,11 @@
+// stores/index.ts
 import { useUsersStore } from './users'
 import { useProfileStore } from './profile'
 import { useAuthStore } from './auth'
-import { usePricingStore } from './pricing'
 import { useContactStore } from './contact'
+import { useAnalyticsStore } from './analytics'
+import { useOrganizationStore } from './organization'
+import { useIntegrationsStore } from './integrations'
 // import { useBillingDetailsStore, useGlobalStore } from './global'
 
-export { useContactStore, usePricingStore, useAuthStore, useProfileStore, useUsersStore }
+export { useContactStore, useAuthStore, useProfileStore, useUsersStore, useAnalyticsStore, useOrganizationStore, useIntegrationsStore }

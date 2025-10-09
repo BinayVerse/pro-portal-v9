@@ -4,7 +4,7 @@ import { getPasswordRegex, SignupValidation } from '../../utils/validations';
 import { query } from '../../utils/db';
 import bcrypt from 'bcrypt';
 import { isPersonalEmail, personalEmailDomains } from '../../utils/auth-utils';
-import { sendWelcomeMail } from '../helper';
+import { sendWelcomeMail, sendOrganizationOnboardedMail } from '../helper';
 
 const isValidPhoneNumber = (wpNumber: string): boolean => {
   const phoneRegex = /^\+(\d{1,3})\d{10,14}$/;
@@ -99,6 +99,20 @@ export default defineEventHandler(async (event) => {
 
     await sendWelcomeMail(params.name, params.email, params.password, appLink);
 
+    // Notify sales team about new organization onboarding (non-blocking)
+    try {
+      const configInner = useRuntimeConfig();
+      await sendOrganizationOnboardedMail({
+        orgName: params.companyName,
+        adminName: params.name,
+        adminEmail: params.email,
+        adminPhone: params.wpNumber,
+        domain: configInner.public.appUrl || 'unknown',
+      });
+    } catch (notifyErr) {
+      console.warn('Failed to send onboarding notification to sales team:', notifyErr);
+    }
+
     setResponseStatus(event, 201);
 
     return {
@@ -107,12 +121,34 @@ export default defineEventHandler(async (event) => {
       data: user.rows[0],
     };
   } catch (error: unknown) {
+    console.error('Signup error:', error);
+
     if (error instanceof CustomError) {
-      throw error;
+      setResponseStatus(event, error.statusCode);
+      return {
+        statusCode: error.statusCode,
+        status: 'error',
+        message: error.message,
+        timestamp: new Date().toISOString()
+      };
     }
+
     if (error instanceof Error) {
-      throw new CustomError(error.message, 500);
+      setResponseStatus(event, 500);
+      return {
+        statusCode: 500,
+        status: 'error',
+        message: error.message || 'An unexpected error occurred during signup',
+        timestamp: new Date().toISOString()
+      };
     }
-    throw new CustomError('An unknown error occurred', 500);
+
+    setResponseStatus(event, 500);
+    return {
+      statusCode: 500,
+      status: 'error',
+      message: 'An unknown error occurred during signup',
+      timestamp: new Date().toISOString()
+    };
   }
 });

@@ -8,8 +8,7 @@
             <span class="text-primary-400">Pricing</span>
           </h1>
           <p class="text-xl text-gray-300 max-w-3xl mx-auto">
-            Choose the plan that fits your needs. All plans include unlimited artefacts and 24/7
-            support.
+            Find the plan that’s right for you, with round-the-clock support.
           </p>
         </div>
 
@@ -72,6 +71,7 @@
 </template>
 
 <script setup lang="ts">
+useHead({ title: 'Pricing - provento.ai' })
 definePageMeta({
   layout: 'main',
 })
@@ -80,7 +80,7 @@ const plans = [
   {
     id: 1,
     name: 'Starter',
-    description: 'Perfect for individuals and small teams',
+    description: 'Perfect for small teams',
     price: 29,
     period: 'month',
     cta: 'Get Started',

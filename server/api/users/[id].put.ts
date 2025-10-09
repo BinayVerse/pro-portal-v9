@@ -125,7 +125,7 @@ export default defineEventHandler(async (event) => {
       if (adminCheckResult.rows.length > 0) {
         setResponseStatus(event, 409)
         throw new CustomError(
-          `Cannot assign the admin role to the user, as the user is already an admin of ${adminCheckResult.rows[0].org_name}`,
+          `Cannot assign the admin role to the user, as the user is already an admin of ${adminCheckResult.rows[0].org_name} organization`,
           409,
         )
       }
@@ -133,33 +133,67 @@ export default defineEventHandler(async (event) => {
       const password = generateRandomPassword()
       const hashedPassword = await bcrypt.hash(password, 10)
       updates.push(`password = $${updates.length + 1}`)
-      values.push(hashedPassword)
+      values.push(null)
 
-      const { resetLink } = await generateResetLink(currentUser.email, config.public.appUrl)
+      const { resetLink } = await generateResetLink(currentUser.email, config.public.appUrl, userId)
       await sendWelcomeMail(currentUser.name, currentUser.email, password, appLink, resetLink)
     } else if (currentUser.role_id == '1' && params.role_id != '1') {
       updates.push(`password = NULL`)
-      const qrUrl = currentUser.qr_code as string
-      const qrKey = new URL(qrUrl).pathname.slice(1)
 
-      const s3 = new S3Client({
-        region: config.awsRegion,
-        credentials: {
-          accessKeyId: config.awsAccessKeyId,
-          secretAccessKey: config.awsSecretAccessKey,
-        },
-      })
+      try {
+        // Determine available channels for the org
+        const integ = await query(
+          `SELECT o.qr_code, COALESCE(w.whatsapp_status, false) AS whatsapp_status, COALESCE(s.status, 'inactive') AS slack_status, COALESCE(t.status, 'inactive') AS teams_status
+           FROM organizations o
+           LEFT JOIN meta_app_details w ON o.org_id = w.org_id
+           LEFT JOIN slack_team_mappings s ON o.org_id = s.org_id
+           LEFT JOIN teams_tenant_mappings t ON o.org_id = t.org_id
+           WHERE o.org_id = $1 LIMIT 1`,
+          [orgId]
+        )
+        const row = integ.rows[0] || {}
+        const channels: string[] = []
+        if (row.whatsapp_status) channels.push('whatsapp')
+        if (row.slack_status === 'active' || row.slack_status === 'connected') channels.push('slack')
+        if (row.teams_status === 'active' || row.teams_status === 'connected') channels.push('teams')
 
-      const signedUrl = await getSignedUrl(
-        s3,
-        new GetObjectCommand({
-          Bucket: config.awsBucketName,
-          Key: qrKey,
-        }),
-        { expiresIn: 604800 },
-      )
+        // If no channels connected, skip sending the invitation
+        if (channels.length === 0) {
+          console.info('No channels connected for org; skipping user addition email for', currentUser.email)
+        } else {
+          // Prepare QR signed URL only if whatsapp is enabled and qr exists
+          let signedUrl: string | null = null
+          if (channels.includes('whatsapp') && currentUser.qr_code) {
+            try {
+              const qrUrl = currentUser.qr_code as string
+              const qrKey = new URL(qrUrl).pathname.slice(1)
 
-      await sendUserAdditionMail(currentUser.name, currentUser.email, signedUrl)
+              const s3 = new S3Client({
+                region: config.awsRegion,
+                credentials: {
+                  accessKeyId: config.awsAccessKeyId,
+                  secretAccessKey: config.awsSecretAccessKey,
+                },
+              })
+
+              signedUrl = await getSignedUrl(
+                s3,
+                new GetObjectCommand({
+                  Bucket: config.awsBucketName,
+                  Key: qrKey,
+                }),
+                { expiresIn: 604800 },
+              )
+            } catch (err) {
+              console.warn('Failed to generate signed QR url for user invite:', err)
+            }
+          }
+
+          await sendUserAdditionMail(currentUser.name, currentUser.email, signedUrl, orgId)
+        }
+      } catch (err) {
+        console.error('Failed to determine integrations or send user addition email on role change:', err)
+      }
     }
 
     if (updates.length === 0) {

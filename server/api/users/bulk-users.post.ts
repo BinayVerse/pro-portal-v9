@@ -149,13 +149,41 @@ export default defineEventHandler(async (event) => {
     await client.query('COMMIT')
 
     const appLink = `${config.public.appUrl}/login`
+
+    // Determine available channels for org once
+    let channels: string[] = []
+    let orgQr: string | null = null
+    try {
+      const integ = await query(
+        `SELECT o.qr_code, COALESCE(w.whatsapp_status, false) AS whatsapp_status, COALESCE(s.status, 'inactive') AS slack_status, COALESCE(t.status, 'inactive') AS teams_status
+          FROM organizations o
+          LEFT JOIN meta_app_details w ON o.org_id = w.org_id
+          LEFT JOIN slack_team_mappings s ON o.org_id = s.org_id
+          LEFT JOIN teams_tenant_mappings t ON o.org_id = t.org_id
+          WHERE o.org_id = $1 LIMIT 1`,
+        [orgDetail.org_id]
+      )
+      const row = integ.rows[0] || {}
+      if (row.whatsapp_status) channels.push('whatsapp')
+      if (row.slack_status === 'active' || row.slack_status === 'connected') channels.push('slack')
+      if (row.teams_status === 'active' || row.teams_status === 'connected') channels.push('teams')
+      orgQr = row.qr_code || null
+    } catch (e) {
+      console.error('Failed to fetch integrations for bulk user emails', e?.message || e)
+    }
+
     for (const user of successfulUsers) {
       try {
         if (user.role_id === 1) {
-          const { resetLink } = await generateResetLink(user.email, config.public.appUrl)
+          const { resetLink } = await generateResetLink(user.email, config.public.appUrl, user.userId)
           await sendWelcomeMail(user.name, user.email, user.password, appLink, resetLink)
-        } else {
-          await sendUserAdditionMail(user.name, user.email, orgDetail.qr_code)
+        } else if (user.role_id === 2) {
+          // Send email only if channels are available for the org
+          if (channels.length > 0) {
+            await sendUserAdditionMail(user.name, user.email, orgQr, orgDetail.org_id)
+          } else {
+            console.info('Skipping invite email for', user.email, '— no channels connected for org')
+          }
         }
       } catch (err: any) {
         console.error(`Failed to send email to ${user.email}:`, err.message)
