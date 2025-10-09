@@ -425,6 +425,9 @@ export const useChatStore = defineStore('chat', () => {
       const first = norm.split(/\s+/)[0]
       for (const g of GREETING_WORDS) {
         if (first === g) return true
+        // Only attempt fuzzy matching when the token lengths are similar; this prevents
+        // short tokens like "how" from matching longer greetings like "howdy".
+        if (Math.abs(first.length - g.length) > 1) continue
         // allow fuzzy match up to distance 1 for short words, 2 for longer
         const threshold = g.length >= 5 ? 2 : 1
         if (levenshtein(first, g) <= threshold) return true
