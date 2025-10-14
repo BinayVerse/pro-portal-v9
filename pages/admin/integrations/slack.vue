@@ -213,7 +213,7 @@
             <ul class="text-sm text-gray-500 dark:text-gray-400 space-y-1">
               <li>• Read and write messages</li>
               <li>• Access user profiles</li>
-              <li>• Join channels automatically</li>
+              <li>�� Join channels automatically</li>
               <li>• Process @mentions</li>
             </ul>
           </div>
@@ -362,8 +362,9 @@ onMounted(async () => {
     }, 8000)
   }
 
-  // Fetch current Slack details
-  await integrationsStore.fetchSlackAppDetails()
+  // Fetch current Slack details (pass org for superadmin if present)
+  const orgQuery = route?.query?.org || route?.query?.org_id || null
+  await integrationsStore.fetchSlackAppDetails(orgQuery ? String(orgQuery) : null)
 })
 
 useHead({

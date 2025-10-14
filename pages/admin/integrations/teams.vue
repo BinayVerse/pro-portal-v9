@@ -405,8 +405,9 @@ onMounted(async () => {
     }, 3000)
   }
 
-  // Fetch current Teams details
-  await integrationsStore.fetchTeamsAppDetails()
+  // Fetch current Teams details (pass selected org for superadmin)
+  const orgQuery = route?.query?.org || route?.query?.org_id || null
+  await integrationsStore.fetchTeamsAppDetails(orgQuery ? String(orgQuery) : null)
 })
 
 useHead({

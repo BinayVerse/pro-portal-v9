@@ -24,14 +24,23 @@ export default defineEventHandler(async (event) => {
     throw new CustomError('Unauthorized: No token provided', 401)
   }
 
-  let orgId
+  // Determine caller role/org and allow superadmin to update cross-org
+  let callerUserId: any
   try {
-    const decodedToken = jwt.verify(token, config.jwtToken as string)
-    orgId = (decodedToken as { org_id: number }).org_id
+    const decodedToken = jwt.verify(token, config.jwtToken as string) as { user_id: number }
+    callerUserId = decodedToken.user_id
   } catch {
     setResponseStatus(event, 401)
     throw new CustomError('Unauthorized: Invalid token', 401)
   }
+
+  const callerRow = await query('SELECT org_id, role_id FROM users WHERE user_id = $1', [callerUserId])
+  if (!callerRow?.rows?.length) {
+    setResponseStatus(event, 404)
+    throw new CustomError('Caller not found', 404)
+  }
+  const callerOrg = callerRow.rows[0].org_id
+  const callerRole = callerRow.rows[0].role_id
 
   if (!userId) {
     setResponseStatus(event, 400)
@@ -39,13 +48,14 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
+    // Fetch the target user without scoping to caller org so superadmin can edit across orgs
     const fetchUserQuery = `
-      SELECT users.*, organizations.org_name, organizations.qr_code 
-      FROM users 
-      LEFT JOIN organizations ON users.org_id = organizations.org_id 
-      WHERE users.user_id = $1 AND users.org_id = $2;
+      SELECT users.*, organizations.org_name, organizations.qr_code
+      FROM users
+      LEFT JOIN organizations ON users.org_id = organizations.org_id
+      WHERE users.user_id = $1;
     `
-    const userResult = await query(fetchUserQuery, [userId, orgId])
+    const userResult = await query(fetchUserQuery, [userId])
 
     if (userResult.rows.length === 0) {
       setResponseStatus(event, 404)
@@ -53,6 +63,13 @@ export default defineEventHandler(async (event) => {
     }
 
     const currentUser = userResult.rows[0]
+    const orgId = currentUser.org_id
+
+    // If not superadmin, ensure caller belongs to same org
+    if (callerRole !== 0 && String(callerOrg) !== String(orgId)) {
+      setResponseStatus(event, 403)
+      throw new CustomError('Forbidden: Cannot modify users from another organization', 403)
+    }
     const appLink = `${config.public.appUrl}/login`
     const updates: string[] = []
     const values: any[] = []
@@ -200,6 +217,10 @@ export default defineEventHandler(async (event) => {
       setResponseStatus(event, 400)
       throw new CustomError('No fields to update', 400)
     }
+
+    // set who updated
+    updates.push(`updated_by = $${updates.length + 1}`)
+    values.push(callerUserId)
 
     updates.push(`updated_at = CURRENT_TIMESTAMP`)
     values.push(userId)

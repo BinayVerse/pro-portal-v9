@@ -121,13 +121,14 @@ export const useArtefactsStore = defineStore('artefacts', {
       }
     },
 
-    async uploadGoogleDriveFiles(selectedFiles: ArtefactGoogleDriveFile[], category: string) {
+    async uploadGoogleDriveFiles(selectedFiles: ArtefactGoogleDriveFile[], category: string, orgId?: string | null) {
       this.isUploadingGoogleDrive = true
 
       try {
         const token = localStorage.getItem('authToken')
+        const url = orgId ? `/api/artefacts/google-drive?org=${encodeURIComponent(String(orgId))}` : '/api/artefacts/google-drive'
 
-        const data = await $fetch('/api/artefacts/google-drive', {
+        const data = await $fetch(url, {
           method: 'POST',
           headers: {
             Authorization: token ? `Bearer ${token}` : '',
@@ -164,19 +165,21 @@ export const useArtefactsStore = defineStore('artefacts', {
       this.otherFilesCount = 0
     },
 
-    async uploadArtefact(formData: FormData) {
+    async uploadArtefact(formData: FormData, orgId?: string | null) {
       try {
         const token = process.client ? localStorage.getItem('authToken') : null
         if (!token) {
           throw new Error('Authentication required')
         }
 
+        const url = orgId ? `/api/artefacts/upload?org=${encodeURIComponent(String(orgId))}` : '/api/artefacts/upload'
+
         const response = await $fetch<{
           statusCode: number
           status: string
           message: string
           data: any
-        }>('/api/artefacts/upload', {
+        }>(url, {
           method: 'POST',
           body: formData,
           headers: {
@@ -364,6 +367,19 @@ export const useArtefactsStore = defineStore('artefacts', {
           throw new Error('Authentication required')
         }
 
+        // If no orgId provided, fall back to route query (useful for superadmin url-based selection)
+        if (!orgId && process.client) {
+          try {
+            const route = useRoute()
+            const q = route?.query?.org || route?.query?.org_id
+            if (q && String(q).trim()) {
+              orgId = String(q)
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+
         const url = orgId ? `/api/artefacts/list?org=${encodeURIComponent(String(orgId))}` : '/api/artefacts/list'
 
         const response = await $fetch<{
@@ -447,12 +463,15 @@ export const useArtefactsStore = defineStore('artefacts', {
     },
 
     // View artefact method
-    async viewArtefact(artefactId: number) {
+    async viewArtefact(artefactId: number, orgId?: string | null) {
       try {
         const token = process.client ? localStorage.getItem('authToken') : null
         if (!token) {
           throw new Error('Authentication required')
         }
+
+        const url = orgId ? `/api/artefacts/view?org=${encodeURIComponent(String(orgId))}` : '/api/artefacts/view'
+        const body: any = { artefactId }
 
         const response = await $fetch<{
           statusCode: number
@@ -463,9 +482,9 @@ export const useArtefactsStore = defineStore('artefacts', {
           fileName: string
           contentType?: string
           docType?: string
-        }>('/api/artefacts/view', {
+        }>(url, {
           method: 'POST',
-          body: { artefactId },
+          body,
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -500,19 +519,20 @@ export const useArtefactsStore = defineStore('artefacts', {
     },
 
     // Summarize artefact method
-    async summarizeArtefact(artefactId: number) {
+    async summarizeArtefact(artefactId: number, orgId?: string | null) {
       try {
         const token = process.client ? localStorage.getItem('authToken') : null
         if (!token) {
           throw new Error('Authentication required')
         }
 
+        const url = orgId ? `/api/artefacts/summarize/${artefactId}?org=${encodeURIComponent(String(orgId))}` : `/api/artefacts/summarize/${artefactId}`
         const response = await $fetch<{
           statusCode: number
           status: string
           message: string
           data?: any
-        }>(`/api/artefacts/summarize/${artefactId}`, {
+        }>(url, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -541,19 +561,20 @@ export const useArtefactsStore = defineStore('artefacts', {
     },
 
     // Reprocess artefact method
-    async reprocessArtefact(artefactId: number) {
+    async reprocessArtefact(artefactId: number, orgId?: string | null) {
       try {
         const token = process.client ? localStorage.getItem('authToken') : null
         if (!token) {
           throw new Error('Authentication required')
         }
 
+        const url = orgId ? `/api/artefacts/reprocess/${artefactId}?org=${encodeURIComponent(String(orgId))}` : `/api/artefacts/reprocess/${artefactId}`
         const response = await $fetch<{
           statusCode: number
           status: string
           message: string
           data: any
-        }>(`/api/artefacts/reprocess/${artefactId}`, {
+        }>(url, {
           method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -582,21 +603,24 @@ export const useArtefactsStore = defineStore('artefacts', {
     },
 
     // Delete artefact method
-    async deleteArtefact(artefactId: number, artefactName: string) {
+    async deleteArtefact(artefactId: number, artefactName: string, orgId?: string | null) {
       try {
         const token = process.client ? localStorage.getItem('authToken') : null
         if (!token) {
           throw new Error('Authentication required')
         }
 
+        const url = orgId ? `/api/artefacts/delete?org=${encodeURIComponent(String(orgId))}` : '/api/artefacts/delete'
+        const body: any = { artefactId, artefactName }
+
         const response = await $fetch<{
           statusCode: number
           status: string
           message: string
           data: any
-        }>('/api/artefacts/delete', {
+        }>(url, {
           method: 'POST',
-          body: { artefactId, artefactName },
+          body,
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -624,12 +648,15 @@ export const useArtefactsStore = defineStore('artefacts', {
     },
 
     // Check if file exists
-    async checkFileExists(fileName: string) {
+    async checkFileExists(fileName: string, orgId?: string | null) {
       try {
         const token = process.client ? localStorage.getItem('authToken') : null
         if (!token) {
           throw new Error('Authentication required')
         }
+
+        const body: any = { fileName }
+        if (orgId) body.org_id = orgId
 
         const response = await $fetch<{
           statusCode: number
@@ -643,7 +670,7 @@ export const useArtefactsStore = defineStore('artefacts', {
           }
         }>('/api/artefacts/check-exists', {
           method: 'POST',
-          body: { fileName },
+          body,
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -673,12 +700,15 @@ export const useArtefactsStore = defineStore('artefacts', {
     },
 
     // Check if multiple files exist using unified endpoint
-    async checkFilesExistBulk(fileNames: string[]) {
+    async checkFilesExistBulk(fileNames: string[], orgId?: string | null) {
       try {
         const token = process.client ? localStorage.getItem('authToken') : null
         if (!token) {
           throw new Error('Authentication required')
         }
+
+        const body: any = { fileNames }
+        if (orgId) body.org_id = orgId
 
         const response = await $fetch<{
           statusCode: number
@@ -696,7 +726,7 @@ export const useArtefactsStore = defineStore('artefacts', {
           }>
         }>('/api/artefacts/check-exists', {
           method: 'POST',
-          body: { fileNames },
+          body,
           headers: {
             Authorization: `Bearer ${token}`,
           },

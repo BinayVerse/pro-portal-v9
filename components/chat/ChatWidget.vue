@@ -117,7 +117,7 @@
                   >
                     <UIcon name="heroicons:document-text" class="w-4 h-4" />
                   </div>
-                  <div class="flex-1">
+                  <div class="flex-1 min-w-0">
                     <div class="text-sm text-gray-200 font-medium truncate" :title="c.header">
                       {{ c.header }}
                     </div>

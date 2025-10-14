@@ -46,6 +46,16 @@ export default defineEventHandler(async (event) => {
     authed_user: { id: installed_by_user_id },
   } = data
 
+  // Determine current app user from state (if included) or fall back to Slack installed_by_user_id
+  let currentAppUserId: any = null
+  try {
+    const decodedState = jwt.verify(state, config.jwtToken as string) as { org_id: string; user_id?: any }
+    currentAppUserId = (decodedState as any).user_id ?? installed_by_user_id
+  } catch {
+    // fallback: treat installed_by_user_id as installer id
+    currentAppUserId = installed_by_user_id
+  }
+
   try {
     await query('BEGIN')
 
@@ -75,8 +85,8 @@ export default defineEventHandler(async (event) => {
 
     if (teamCheck.rows.length > 0) {
       await query(
-        `UPDATE slack_team_mappings SET org_id = $1, team_name = $2, access_token = $3, installed_by_user_id = $4, updated_at = NOW(), status = 'active' WHERE team_id = $5`,
-        [orgId, team_name, access_token, installed_by_user_id, team_id]
+        `UPDATE slack_team_mappings SET org_id = $1, team_name = $2, access_token = $3, installed_by_user_id = $4, updated_at = NOW(), status = 'active', updated_by = $6 WHERE team_id = $5`,
+        [orgId, team_name, access_token, installed_by_user_id, team_id, currentAppUserId]
       )
     } else {
       const orgCheck = await query(
@@ -86,13 +96,13 @@ export default defineEventHandler(async (event) => {
 
       if (orgCheck.rows.length > 0) {
         await query(
-          `UPDATE slack_team_mappings SET team_id = $1, team_name = $2, access_token = $3, installed_by_user_id = $4, updated_at = NOW(), status = 'active' WHERE org_id = $5`,
-          [team_id, team_name, access_token, installed_by_user_id, orgId]
+          `UPDATE slack_team_mappings SET team_id = $1, team_name = $2, access_token = $3, installed_by_user_id = $4, updated_at = NOW(), status = 'active', updated_by = $6 WHERE org_id = $5`,
+          [team_id, team_name, access_token, installed_by_user_id, orgId, currentAppUserId]
         )
       } else {
         await query(
-          `INSERT INTO slack_team_mappings (team_id, org_id, team_name, access_token, installed_by_user_id, updated_at, status) VALUES ($1, $2, $3, $4, $5, NOW(), 'active')`,
-          [team_id, orgId, team_name, access_token, installed_by_user_id]
+          `INSERT INTO slack_team_mappings (team_id, org_id, team_name, access_token, installed_by_user_id, updated_at, status, added_by) VALUES ($1, $2, $3, $4, $5, NOW(), 'active', $6)`,
+          [team_id, orgId, team_name, access_token, installed_by_user_id, currentAppUserId]
         )
       }
     }

@@ -25,14 +25,19 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    // Get user's organization
-    const userOrg = await query('SELECT org_id FROM users WHERE user_id = $1', [userId])
+    // Get user's organization and role
+    const userOrg = await query('SELECT org_id, role_id FROM users WHERE user_id = $1', [userId])
     if (!userOrg?.rows?.length) {
       setResponseStatus(event, 404)
       throw new CustomError('User not found or organization not assigned', 404)
     }
+    const tokenUserOrg = userOrg.rows[0].org_id
+    const tokenUserRole = userOrg.rows[0].role_id
 
-    const orgId = userOrg.rows[0].org_id
+    // Allow superadmin to request specific org via query param 'org'/'org_id'
+    const q = getQuery(event) as Record<string, any>
+    const requestedOrg = q?.org || q?.org_id || null
+    const orgId = tokenUserRole === 0 && requestedOrg ? String(requestedOrg) : tokenUserOrg
 
     // Time window: last 24 hours (UTC)
     const windowStart = dayjs().utc().subtract(24, 'hour').toISOString()

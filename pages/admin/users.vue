@@ -14,7 +14,7 @@
           :class="[
             baseButtonClass,
             'bg-dark-800 text-white hover:bg-dark-700',
-            'flex items-center space-x-2'
+            'flex items-center space-x-2',
           ]"
         >
           <UIcon name="i-heroicons-cloud-arrow-up" class="w-4 h-4" />
@@ -25,7 +25,7 @@
           :class="[
             baseButtonClass,
             'bg-blue-600 hover:bg-blue-700 text-white',
-            'flex items-center space-x-2'
+            'flex items-center space-x-2',
           ]"
         >
           <UIcon name="i-heroicons-plus" class="w-4 h-4" />
@@ -586,6 +586,7 @@
         <!-- Modal Body -->
         <div class="upload-area space-y-4">
           <!-- File Upload Section -->
+
           <div
             class="drag-area border-dashed border-2 border-gray-300 rounded-md p-6 flex flex-col items-center justify-center cursor-pointer"
             @dragover.prevent
@@ -755,7 +756,7 @@ const isWhatsAppConnected = computed(() => {
 // Reactive state
 const phoneRef = ref(null)
 const phoneValidation = ref({ status: true, message: '' })
-
+const route = useRoute()
 const searchQuery = ref('')
 const selectedRole = ref('')
 const selectedStatus = ref('')
@@ -969,7 +970,9 @@ const stats = computed<UserStats>(() => {
     }
 
     if (!createdDate) return false
-    return createdDate.getMonth() === now.getMonth() && createdDate.getFullYear() === now.getFullYear()
+    return (
+      createdDate.getMonth() === now.getMonth() && createdDate.getFullYear() === now.getFullYear()
+    )
   }).length
 
   return { totalUsers, activeUsers, adminUsers, newThisMonth }
@@ -1053,8 +1056,10 @@ const loadUsers = async (showLoading = true) => {
 
   try {
     // If superadmin is viewing org-scoped page, pass org query param to store
-    const route = useRoute()
-    const orgIdFromQuery = (route.query?.org || route.query?.org_id) ? String(route.query?.org || route.query?.org_id) : null
+    const orgIdFromQuery =
+      route.query?.org || route.query?.org_id
+        ? String(route.query?.org || route.query?.org_id)
+        : null
     await usersStore.fetchUsers(orgIdFromQuery)
     if (usersStore.users?.length) {
       usersList.value = usersStore.users.map(mapApiUserToMappedUser)
@@ -1120,6 +1125,16 @@ const saveUser = async () => {
 
     if (isEditMode.value && userForm.primaryContact) {
       await handlePrimaryContactUpdate()
+    }
+
+    const orgIdFromQuery =
+      route?.query?.org || route?.query?.org_id
+        ? String(route.query?.org || route.query?.org_id)
+        : null
+
+    if (!isEditMode.value && authUser.value?.role_id === 0 && orgIdFromQuery) {
+      // Superadmin creating for selected org — include org_id in payload
+      payload['org_id'] = orgIdFromQuery
     }
 
     if (isEditMode.value && userForm.user_id) {
@@ -1426,7 +1441,12 @@ const openPreview = async (file: File) => {
 
     // Call validation API
     validating.value = true
-    const validationResponse = await usersStore.uploadAndValidateJson(parsedData as any)
+    const route = useRoute()
+    const orgIdFromQuery =
+      route?.query?.org || route?.query?.org_id
+        ? String(route.query?.org || route.query?.org_id)
+        : null
+    const validationResponse = await usersStore.uploadAndValidateJson(parsedData as any, orgIdFromQuery)
 
     if (validationResponse.errors && validationResponse.errors.length > 0) {
       errors.value = validationResponse.errors.map(
@@ -1533,7 +1553,12 @@ const handleUpload = async () => {
     showInlineError('No data to upload.')
     return
   }
-  await usersStore.createBulkUsers(previewData.value as any)
+  const route = useRoute()
+  const orgIdFromQuery =
+    route?.query?.org || route?.query?.org_id
+      ? String(route.query?.org || route.query?.org_id)
+      : null
+  await usersStore.createBulkUsers(previewData.value as any, orgIdFromQuery)
   closePreviewForm()
   await loadUsers()
 }
@@ -1596,12 +1621,14 @@ onMounted(async () => {
     // pass org from route for superadmin
     (async () => {
       const route = useRoute()
-      const orgId = route.query?.org || route.query?.org_id ? String(route.query?.org || route.query?.org_id) : null
+      const orgId =
+        route.query?.org || route.query?.org_id
+          ? String(route.query?.org || route.query?.org_id)
+          : null
       await integrationsStore.fetchOverview(orgId, false, false).catch(() => {})
     })(),
   ]
   await Promise.all(initialLoads)
-
 
   pollInterval.value = window.setInterval(() => {
     loadUsers(false).catch((e) => console.warn('Polling loadUsers failed', e))
@@ -1613,7 +1640,6 @@ onBeforeUnmount(() => {
     clearInterval(pollInterval.value)
     pollInterval.value = null
   }
-
 })
 
 useHead({

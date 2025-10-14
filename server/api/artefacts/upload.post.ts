@@ -1,4 +1,4 @@
-import { defineEventHandler, setResponseStatus } from 'h3'
+import { defineEventHandler, setResponseStatus, getHeaders } from 'h3'
 import formidable from 'formidable'
 import { CustomError } from '../../utils/custom.error'
 import { query } from '../../utils/db'
@@ -31,21 +31,57 @@ export default defineEventHandler(async (event) => {
       throw new CustomError('Unauthorized: Invalid token', 401)
     }
 
-    const userQuery = `
-    SELECT u.org_id, o.org_name
+    // Determine caller org and role; allow superadmin override via query param or form field
+    const decodedUserQuery = `
+    SELECT u.org_id, u.role_id, o.org_name
     FROM users u
     INNER JOIN organizations o ON u.org_id = o.org_id
     WHERE u.user_id = $1;
   `
-    const userResult = await query(userQuery, [userId])
+    const userResult = await query(decodedUserQuery, [userId])
 
     if (userResult.rows.length === 0) {
       throw new CustomError('User or organization not found', 404)
     }
 
-    const { org_name, org_id } = userResult.rows[0]
+    const tokenUserOrg = userResult.rows[0].org_id
+    const tokenUserRole = userResult.rows[0].role_id
+
+    // For multipart form, requested org can be in query or form fields; we'll derive later after parsing form
+    // We'll keep org_name/org_id variables populated after parsing form
+    let org_name = userResult.rows[0].org_name
+    let org_id = tokenUserOrg
+    const prefixBase = `${folderName}`
+
+    // Parse form early to extract any org override field
+    const form = formidable({ multiples: false, maxFileSize: 20 * 1024 * 1024 })
+    const parsed = await new Promise<{ fields: any; files: any }>((resolve, reject) => {
+      form.parse(event.node.req, (err, fields, files) => {
+        if (err) reject(err)
+        resolve({ fields, files })
+      })
+    })
+    const fields = parsed.fields
+    const files = parsed.files
+
+    const q = getQuery(event) as Record<string, any>
+    const headers = getHeaders(event)
+    const headerOrg = headers['x-org-id'] || headers['x-orgid'] || headers['x_org_id'] || null
+    const requestedOrg = headerOrg || q?.org || q?.org_id || fields?.org_id || null
+
+    if (tokenUserRole === 0 && requestedOrg) {
+      // fetch org_name for requestedOrg
+      const orgRow = await query('SELECT org_name FROM organizations WHERE org_id = $1 LIMIT 1', [requestedOrg])
+      if (!orgRow?.rows?.length) throw new CustomError('Requested organization not found', 404)
+      org_name = orgRow.rows[0].org_name
+      org_id = String(requestedOrg)
+    }
+
     const companyName = org_name.toLowerCase().replace(/ /g, '_')
-    const prefix = `${folderName}/${companyName}/files/`
+    const prefix = `${prefixBase}/${companyName}/files/`
+
+    // Reassign form fields/files for rest of logic
+    // (we parsed above, so use parsed values below)
 
     const s3Client = new S3Client({
       region: config.awsRegion,
@@ -56,17 +92,7 @@ export default defineEventHandler(async (event) => {
     })
 
     try {
-      const form = formidable({
-        multiples: false,
-        maxFileSize: 20 * 1024 * 1024 // 20MB limit to match frontend
-      })
-
-      const { fields, files } = await new Promise<{ fields: any; files: any }>((resolve, reject) => {
-        form.parse(event.node.req, (err, fields, files) => {
-          if (err) reject(err)
-          resolve({ fields, files })
-        })
-      })
+      // 'fields' and 'files' are already parsed above
 
       if (!files.file) {
         throw new CustomError('No file uploaded', 400)
@@ -145,7 +171,7 @@ export default defineEventHandler(async (event) => {
         // Update existing file
         const updateResult = await query(
           `UPDATE organization_documents
-        SET document_link = $1, status = $2, summary = $3, is_summarized = $4, updated_at = NOW(), file_category = $5, doc_type = 'document', content_type = $6, file_size = $7, description = $8, added_by = $9
+        SET document_link = $1, status = $2, summary = $3, is_summarized = $4, updated_at = NOW(), file_category = $5, doc_type = 'document', content_type = $6, file_size = $7, description = $8, updated_by = $9
         WHERE id = $10
         RETURNING id`,
           [publicUrl, 'processing', null, false, categoryId, fileMimeType, parseInt(uploadedFile.size.toString(), 10), description || null, userId, existingFile.id]

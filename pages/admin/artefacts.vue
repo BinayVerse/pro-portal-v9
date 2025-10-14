@@ -165,9 +165,18 @@ const isDeletingCategory = ref(false)
 const authStore = useAuthStore()
 const artefactsStore = useArtefactsStore()
 
-// Get orgId from auth user
+// Get orgId: for superadmin prefer route query/org param, otherwise use auth user's org
 const currentUser = computed(() => authStore.user || null)
-const orgId = computed(() => currentUser.value?.org_id || null)
+import { useRoute } from 'vue-router'
+const route = useRoute()
+const orgId = computed(() => {
+  // If caller is superadmin, prefer selected org from route query
+  if (currentUser.value?.role_id === 0) {
+    const q = route && route.query ? route.query.org || route.query.org_id : null
+    if (q && String(q).trim()) return String(q)
+  }
+  return currentUser.value?.org_id || null
+})
 
 // Fallback categories if API is not available
 const fallbackCategories = [
@@ -279,6 +288,7 @@ const confirmDeleteArtefact = async () => {
     const result = await artefactsStore.deleteArtefact(
       artefactToDelete.value.id,
       artefactToDelete.value.name,
+      orgId.value,
     )
 
     if (result.success) {
@@ -312,7 +322,7 @@ const confirmReprocessArtefact = async () => {
   const { showError, showSuccess } = useNotification()
 
   try {
-    const result = await artefactsStore.reprocessArtefact(artefactToReprocess.value.id)
+    const result = await artefactsStore.reprocessArtefact(artefactToReprocess.value.id, orgId.value)
 
     if (result.success) {
       showSuccess(result.message)
@@ -380,7 +390,7 @@ const confirmSummarizeArtefact = async () => {
   try {
     showInfo('Document summarization started! This may take a few moments...')
 
-    const result = await artefactsStore.summarizeArtefact(artefactToSummarize.value.id)
+    const result = await artefactsStore.summarizeArtefact(artefactToSummarize.value.id, orgId.value)
 
     if (result.success) {
       showSuccess(result.message)
@@ -431,7 +441,7 @@ const downloadArtefact = async (artefact: any) => {
     showInfo('Preparing download...')
 
     // Use the existing viewArtefact method to get the file URL
-    const result = await artefactsStore.viewArtefact(artefact.id)
+    const result = await artefactsStore.viewArtefact(artefact.id, orgId.value)
 
     if (result.success && result.data.fileUrl) {
       // Create a temporary link to trigger download

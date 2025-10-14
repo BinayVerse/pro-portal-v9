@@ -810,6 +810,17 @@ const formatFileSize = (bytes: number) => {
 }
 
 // UForm submission handler
+const route = useRoute()
+const authStore = useAuthStore()
+const authUser = computed(() => authStore.getAuthUser)
+const modalOrgId = computed(() => {
+  if (authUser.value?.role_id === 0) {
+    const q = route && route.query ? route.query.org || route.query.org_id : null
+    if (q && String(q).trim()) return String(q)
+  }
+  return authUser.value?.org_id || null
+})
+
 const onSubmit = async (event: FormSubmitEvent<Schema>) => {
   try {
     isUploading.value = true
@@ -822,7 +833,7 @@ const onSubmit = async (event: FormSubmitEvent<Schema>) => {
 
     // Check if file already exists
     const fileName = event.data.file.name.replace(/\s+/g, '_')
-    const existsResult = await artefactsStore.checkFileExists(fileName)
+    const existsResult = await artefactsStore.checkFileExists(fileName, modalOrgId.value)
 
     if (existsResult.success && existsResult.exists) {
       // Show replacement modal with existing file's category
@@ -836,7 +847,7 @@ const onSubmit = async (event: FormSubmitEvent<Schema>) => {
     }
 
     // Proceed with upload if file doesn't exist
-    await performUpload(formData)
+    await performUpload(formData, modalOrgId.value)
   } catch (error) {
     showError('Upload failed. Please try again.')
     isUploading.value = false
@@ -844,10 +855,10 @@ const onSubmit = async (event: FormSubmitEvent<Schema>) => {
 }
 
 // Perform the actual upload
-const performUpload = async (formData: FormData) => {
+const performUpload = async (formData: FormData, orgId?: string | null) => {
   try {
     // Call the store upload method
-    const result = await artefactsStore.uploadArtefact(formData)
+    const result = await artefactsStore.uploadArtefact(formData, orgId)
 
     if (!result.success) {
       showError(result.message || 'Upload failed. Please try again.')
@@ -975,6 +986,7 @@ const uploadFromGoogleDrive = async () => {
     const result = await artefactsStore.uploadGoogleDriveFiles(
       selectedGoogleDriveFiles.value,
       googleDriveState.category,
+      modalOrgId.value,
     )
 
     if (!result.success) {

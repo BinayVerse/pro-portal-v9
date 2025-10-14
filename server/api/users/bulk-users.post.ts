@@ -32,7 +32,7 @@ export default defineEventHandler(async (event) => {
     const userId = decodedToken.user_id
 
     const userResult = await query(
-      `SELECT user_id, name, email, org_id FROM users WHERE user_id = $1`,
+      `SELECT user_id, name, email, org_id, role_id FROM users WHERE user_id = $1`,
       [userId],
     )
     if (userResult.rows.length === 0) {
@@ -40,9 +40,28 @@ export default defineEventHandler(async (event) => {
       throw new CustomError('User not found', 404)
     }
 
+    // Allow superadmin override via query or body.org_id
+    const q = getQuery(event) as Record<string, any>
+    const body = await readBody(event)
+    // body can be either an array of users, or an object { users: [...], org_id: '...' }
+    // Allow org override via query param, body.org_id, or Referer URL (fallback)
+    const referer = (event.node.req.headers['referer'] || event.node.req.headers['referrer'] || null) as string | null
+    let requestedOrg = q?.org || q?.org_id || body?.org_id || null
+    if (!requestedOrg && referer) {
+      try {
+        const refUrl = new URL(String(referer))
+        requestedOrg = refUrl.searchParams.get('org') || refUrl.searchParams.get('org_id') || requestedOrg
+      } catch (e) {
+        // ignore invalid referer
+      }
+    }
+
+    // Only allow org override if caller is superadmin (role_id === 0)
+    const effectiveOrgId = userResult.rows[0].role_id === 0 && requestedOrg ? String(requestedOrg) : userResult.rows[0].org_id
+
     const orgResult = await query(
       `SELECT org_id, org_name, qr_code FROM organizations WHERE org_id = $1`,
-      [userResult.rows[0].org_id],
+      [effectiveOrgId],
     )
     if (orgResult.rows.length === 0) {
       setResponseStatus(event, 404)
@@ -50,11 +69,16 @@ export default defineEventHandler(async (event) => {
     }
 
     const orgDetail = orgResult.rows[0]
-    const body = await readBody(event)
 
-    if (!Array.isArray(body)) {
+    // Support both direct array body and object body { users: [...], org_id }
+    let usersArray: any[] = []
+    if (Array.isArray(body)) {
+      usersArray = body
+    } else if (body && Array.isArray((body as any).users)) {
+      usersArray = (body as any).users
+    } else {
       setResponseStatus(event, 400)
-      throw new CustomError('Expected an array of users', 400)
+      throw new CustomError('Expected an array of users or { users: [...] }', 400)
     }
 
     client = await getClient()
@@ -63,8 +87,8 @@ export default defineEventHandler(async (event) => {
     const successfulUsers: any[] = []
     const failedUsers: any[] = []
 
-    for (let rowIndex = 0; rowIndex < body.length; rowIndex++) {
-      const row = body[rowIndex]
+    for (let rowIndex = 0; rowIndex < usersArray.length; rowIndex++) {
+      const row = usersArray[rowIndex]
       const name = row.Name?.trim()
       const email = row.Email?.trim()
       const contactNumber = row['Whatsapp Number']?.trim()
@@ -117,9 +141,9 @@ export default defineEventHandler(async (event) => {
         const hashedPassword = await bcrypt.hash(password, 10)
 
         const result = await client.query(
-          `INSERT INTO users (name, email, contact_number, role_id, password, org_id)
-           VALUES ($1, $2, $3, $4, $5, $6) RETURNING user_id`,
-          [name, email, contactNumber, roleId, hashedPassword, orgDetail.org_id],
+          `INSERT INTO users (name, email, contact_number, role_id, password, org_id, added_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING user_id`,
+          [name, email, contactNumber, roleId, hashedPassword, orgDetail.org_id, userId],
         )
 
         successfulUsers.push({

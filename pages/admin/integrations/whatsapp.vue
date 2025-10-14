@@ -547,6 +547,7 @@ import { useIntegrationsStore } from '~/stores'
 const integrationsStore = useIntegrationsStore()
 const { showSuccess, showError } = useNotification()
 const config = useRuntimeConfig()
+const route = useRoute()
 
 // Reactive data
 const showDisconnectModal = ref(false)
@@ -741,8 +742,9 @@ const saveConfiguration = async () => {
 
 // Lifecycle
 onMounted(async () => {
-  // Fetch current WhatsApp details
-  await integrationsStore.fetchWhatsAppDetails()
+  // Fetch current WhatsApp details (pass selected org for superadmin)
+  const orgQuery = route?.query?.org || route?.query?.org_id || null
+  await integrationsStore.fetchWhatsAppDetails(orgQuery ? String(orgQuery) : null)
 
   // Fetch QR code if WhatsApp is configured
   if (integrationsStore.whatsappDetails?.business_whatsapp_number) {

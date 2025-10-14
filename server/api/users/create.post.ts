@@ -32,7 +32,7 @@ export default defineEventHandler(async (event) => {
     userId = decodedToken.user_id
 
     const userResult = await query(
-      `SELECT user_id, name, email, org_id FROM users WHERE user_id = $1`,
+      `SELECT user_id, name, email, org_id, role_id FROM users WHERE user_id = $1`,
       [userId],
     )
     if (!userResult.rows.length) {
@@ -42,9 +42,14 @@ export default defineEventHandler(async (event) => {
 
     currentUser = userResult.rows[0]
 
+    // Allow superadmin to create user for a requested org via query param or body.org_id
+    const q = getQuery(event) as Record<string, any>
+    const requestedOrg = q?.org || q?.org_id || params?.org_id || null
+    const effectiveOrgId = currentUser.role_id === 0 && requestedOrg ? String(requestedOrg) : currentUser.org_id
+
     const orgResult = await query(
       `SELECT org_id, org_name, qr_code FROM organizations WHERE org_id = $1`,
-      [currentUser.org_id],
+      [effectiveOrgId],
     )
     if (!orgResult.rows.length) {
       setResponseStatus(event, 404)
@@ -124,6 +129,9 @@ export default defineEventHandler(async (event) => {
     `
     values = [name, normalizedEmail, null, contact_number, roleIdNum, orgDetail.org_id, userId]
   }
+
+  // ensure org_id in values is the effective org (handles superadmin override via query or body)
+  values[4] = orgDetail.org_id
 
 
   try {

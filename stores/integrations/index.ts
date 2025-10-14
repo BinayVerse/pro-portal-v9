@@ -182,7 +182,7 @@ export const useIntegrationsStore = defineStore('integrations', {
           this.lastFetched = new Date()
 
           // Fetch recent activity from DB (real events)
-          await this.fetchRecentActivity()
+          await this.fetchRecentActivity(orgId || null)
 
           return { success: true, data: response.data, message: response.message }
         } else {
@@ -262,9 +262,10 @@ export const useIntegrationsStore = defineStore('integrations', {
     },
 
     // Fetch recent activity from DB (real events)
-    async fetchRecentActivity() {
+    async fetchRecentActivity(orgId?: string | null) {
       try {
-        const response = await $fetch('/api/integrations/activity', { headers: this.getAuthHeaders() })
+        const url = orgId ? `/api/integrations/activity?org=${encodeURIComponent(String(orgId))}` : '/api/integrations/activity'
+        const response = await $fetch(url, { headers: this.getAuthHeaders() })
         if (response && (response as any).status === 'success') {
           const respData = (response as any).data || {}
           const apiActivities: any[] = respData.activities || []
@@ -410,12 +411,24 @@ export const useIntegrationsStore = defineStore('integrations', {
 
 
     // Slack integration methods
-    async fetchSlackAppDetails() {
+    async fetchSlackAppDetails(orgId?: string | null) {
       try {
         this.loading = true;
         this.slackAppStatus = true;
 
-        const response = await $fetch<{ statusCode: number; message: string; data: any }>('/api/integrations/slack/details', {
+        // If no orgId provided and running in client, try to read from route query for superadmin selection
+        if (!orgId && process.client) {
+          try {
+            const route = useRoute()
+            const q = route?.query?.org || route?.query?.org_id
+            if (q && String(q).trim()) orgId = String(q)
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        const url = orgId ? `/api/integrations/slack/details?org=${encodeURIComponent(String(orgId))}` : '/api/integrations/slack/details'
+        const response = await $fetch<{ statusCode: number; message: string; data: any }>(url, {
           headers: this.getAuthHeaders(),
         });
 
@@ -504,12 +517,26 @@ export const useIntegrationsStore = defineStore('integrations', {
     },
 
     // Teams integration methods
-    async fetchTeamsAppDetails() {
+    async fetchTeamsAppDetails(orgId?: string | null) {
       try {
         this.loading = true;
         this.teamsAppStatus = true;
 
-        const response = await $fetch<{ statusCode: number; message: string; data: any }>('/api/integrations/teams/details', {
+        // If no orgId provided and running in client, try to read from route query for superadmin selection
+        if (!orgId && process.client) {
+          try {
+            const route = useRoute()
+            const q = route?.query?.org || route?.query?.org_id
+            if (q && String(q).trim()) {
+              orgId = String(q)
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        const url = orgId ? `/api/integrations/teams/details?org=${encodeURIComponent(String(orgId))}` : '/api/integrations/teams/details'
+        const response = await $fetch<{ statusCode: number; message: string; data: any }>(url, {
           headers: this.getAuthHeaders(),
         });
 
@@ -695,18 +722,26 @@ export const useIntegrationsStore = defineStore('integrations', {
       }
     },
 
-    async fetchWhatsAppDetails() {
+    async fetchWhatsAppDetails(orgId?: string | null) {
       try {
         this.loading = true;
         this.error = null;
         this.whatsappStatus = true;
 
-        const data = await $fetch<ApiResponse<WhatsAppAccountData>>(
-          '/api/integrations/whatsapp/details',
-          {
-            headers: this.getAuthHeaders(),
-          }
-        );
+        // If no orgId provided and running in client, try to read from route query for superadmin selection
+        if (!orgId && process.client) {
+          try {
+            const route = useRoute()
+            const q = route?.query?.org || route?.query?.org_id
+            if (q && String(q).trim()) orgId = String(q)
+          } catch (e) {}
+        }
+
+        const url = orgId ? `/api/integrations/whatsapp/details?org=${encodeURIComponent(String(orgId))}` : '/api/integrations/whatsapp/details'
+
+        const data = await $fetch<ApiResponse<WhatsAppAccountData>>(url, {
+          headers: this.getAuthHeaders(),
+        });
 
         if (data?.status === 'success' && data.data) {
           this.whatsappDetails = data.data;

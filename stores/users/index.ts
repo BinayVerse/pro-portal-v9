@@ -244,16 +244,18 @@ export const useUsersStore = defineStore('usersStore', {
       return await this.setUserActive(id, !user.is_active)
     },
 
-    async createBulkUsers(jsonData: OrganizationUser) {
+    async createBulkUsers(jsonData: OrganizationUser, orgId?: string | null) {
       this.userLoading = true
       try {
+        const url = orgId ? `/api/users/bulk-users?org=${encodeURIComponent(String(orgId))}` : '/api/users/bulk-users'
+        const body = jsonData
         const data = await $fetch<{
           status: boolean
           message: string
           errors?: any[]
-        }>('/api/users/bulk-users', {
+        }>(url, {
           method: 'POST' as any,
-          body: jsonData,
+          body,
           headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),
         })
 
@@ -271,15 +273,26 @@ export const useUsersStore = defineStore('usersStore', {
       }
     },
 
-    async uploadAndValidateJson(jsonData: OrganizationUser) {
+    async uploadAndValidateJson(jsonData: OrganizationUser, orgId?: string | null) {
       this.userLoading = true
       try {
+        // If caller didn't provide orgId, try to read it from the current route (useful for superadmin selected org)
+        let resolvedOrgId = orgId || null
+        try {
+          const route = useRoute()
+          const q = route?.query?.org || route?.query?.org_id
+          if (!resolvedOrgId && q) resolvedOrgId = String(q)
+        } catch (e) {
+          // ignore if useRoute isn't available in this context
+        }
+
+        const url = resolvedOrgId ? `/api/users/upload-json?org=${encodeURIComponent(String(resolvedOrgId))}` : '/api/users/upload-json'
         const data = await $fetch<{
           status: boolean
           message: string
           data?: any
           errors?: any[]
-        }>('/api/users/upload-json', {
+        }>(url, {
           method: 'POST',
           body: jsonData,
           headers: this.getAuthHeaders({ 'Content-Type': 'application/json' }),

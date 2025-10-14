@@ -14,14 +14,29 @@ export default defineEventHandler(async (event) => {
         throw new CustomError('Unauthorized: No token provided', 401)
     }
 
+    // Determine effective org: prefer query param for superadmin
     let orgId: number
+    let userId: any
     try {
-        const decodedToken = jwt.verify(token, config.jwtToken) as { org_id: number }
-        orgId = decodedToken.org_id
+        const decodedToken = jwt.verify(token, config.jwtToken as string) as { user_id: number }
+        userId = decodedToken.user_id
     } catch {
         setResponseStatus(event, 401)
         throw new CustomError('Unauthorized: Invalid token', 401)
     }
+
+    // Fetch user's org and role from DB
+    const userRow = await query('SELECT org_id, role_id FROM users WHERE user_id = $1', [userId])
+    if (!userRow?.rows?.length) {
+      setResponseStatus(event, 404)
+      throw new CustomError('User not found', 404)
+    }
+    const tokenUserOrg = userRow.rows[0].org_id
+    const tokenUserRole = userRow.rows[0].role_id
+
+    const q = getQuery(event) as Record<string, any>
+    const requestedOrg = q?.org || q?.org_id || null
+    orgId = tokenUserRole === 0 && requestedOrg ? String(requestedOrg) : tokenUserOrg
 
     const {
         business_whatsapp_number,
@@ -68,35 +83,41 @@ export default defineEventHandler(async (event) => {
         const qrCode = await generateQRCode(orgName, business_whatsapp_number)
 
         await query(
-            `INSERT INTO public.organizations (org_id, org_name, org_whatsapp_number, qr_code) 
-                VALUES ($1, $2, $3, $4)
-                ON CONFLICT (org_id) 
-                DO UPDATE SET 
-                    org_name = EXCLUDED.org_name, 
-                    org_whatsapp_number = EXCLUDED.org_whatsapp_number, 
-                    qr_code = EXCLUDED.qr_code;`,
-            [orgId, orgName, business_whatsapp_number, qrCode]
+            `INSERT INTO public.organizations (org_id, org_name, org_whatsapp_number, qr_code, added_by, created_at)
+                VALUES ($1, $2, $3, $4, $5, NOW())
+                ON CONFLICT (org_id)
+                DO UPDATE SET
+                    org_name = EXCLUDED.org_name,
+                    org_whatsapp_number = EXCLUDED.org_whatsapp_number,
+                    qr_code = EXCLUDED.qr_code,
+                    updated_by = EXCLUDED.added_by,
+                    updated_at = NOW();`,
+            [orgId, orgName, business_whatsapp_number, qrCode, userId]
         )
 
         await query(
             `INSERT INTO public.meta_app_details (
-                org_id, 
-                meta_whatsapp_number, 
-                access_token, 
-                app_id, 
-                app_secret, 
-                verify_token, 
-                whatsapp_status
-            ) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            ON CONFLICT (org_id) 
-            DO UPDATE SET 
+                org_id,
+                meta_whatsapp_number,
+                access_token,
+                app_id,
+                app_secret,
+                verify_token,
+                whatsapp_status,
+                added_by,
+                created_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+            ON CONFLICT (org_id)
+            DO UPDATE SET
                 meta_whatsapp_number = EXCLUDED.meta_whatsapp_number,
                 access_token = EXCLUDED.access_token,
                 app_id = EXCLUDED.app_id,
                 app_secret = EXCLUDED.app_secret,
                 verify_token = EXCLUDED.verify_token,
-                whatsapp_status = EXCLUDED.whatsapp_status;
+                whatsapp_status = EXCLUDED.whatsapp_status,
+                updated_by = EXCLUDED.added_by,
+                updated_at = NOW();
             `,
             [
                 orgId,
@@ -106,6 +127,7 @@ export default defineEventHandler(async (event) => {
                 app_secret_key,
                 '',
                 true,
+                userId,
             ]
         )
 

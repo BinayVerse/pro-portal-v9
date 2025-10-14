@@ -380,6 +380,8 @@ export const useChatStore = defineStore('chat', () => {
       'heyya',
       'hallo',
       'helo',
+      'hlo',
+      'hlw',
     ]
 
     // Matches strings made up of only emojis and optional whitespace/punctuation
@@ -418,11 +420,31 @@ export const useChatStore = defineStore('chat', () => {
       if (ONLY_EMOJI_RE.test(text)) return true
       const norm = normalizeGreetingText(text)
       if (!norm) return false
+      const tokens = norm.split(/\s+/)
+      // Only consider greeting intent for short inputs (avoid classifying full questions as greetings)
+      if (tokens.length > 3) return false
+
+      // If the first token is a question word, treat as question not greeting (e.g., "how", "what")
+      const QUESTION_WORDS = new Set([
+        'how',
+        'what',
+        'when',
+        'why',
+        'who',
+        'which',
+        'where',
+        'whats',
+        'howmany',
+        'howmuch',
+      ])
+      const first = tokens[0]
+      if (QUESTION_WORDS.has(first)) return false
+
       // check multi-word greetings first
       for (const g of GREETING_WORDS) {
         if (g.includes(' ') && norm.startsWith(g)) return true
       }
-      const first = norm.split(/\s+/)[0]
+
       for (const g of GREETING_WORDS) {
         if (first === g) return true
         // Only attempt fuzzy matching when the token lengths are similar; this prevents
