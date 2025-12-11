@@ -46,19 +46,29 @@
           Disconnect
         </UButton>
 
-        <UButton
-          v-else-if="connectionStatus.hasBeenConnected"
-          :to="slackOauthUrl"
-          external
-          color="purple"
-          icon="heroicons:arrow-path"
-        >
-          Reconnect
-        </UButton>
+        <template v-else-if="connectionStatus.hasBeenConnected">
+          <UButton
+            v-if="!isSuperAdmin"
+            :to="slackOauthUrl"
+            external
+            color="purple"
+            icon="heroicons:arrow-path"
+          >
+            Reconnect
+          </UButton>
+          <UButton v-else disabled color="gray" icon="heroicons:arrow-path" title="Super admin cannot connect integrations">
+            Reconnect
+          </UButton>
+        </template>
 
-        <UButton v-else :to="slackOauthUrl" external color="purple" icon="heroicons:plus">
-          Connect
-        </UButton>
+        <template v-else>
+          <UButton v-if="!isSuperAdmin" :to="slackOauthUrl" external color="purple" icon="heroicons:plus">
+            Connect
+          </UButton>
+          <UButton v-else disabled color="gray" icon="heroicons:plus" title="Super admin cannot connect integrations">
+            Connect
+          </UButton>
+        </template>
       </div>
     </div>
 
@@ -307,6 +317,8 @@ const config = useRuntimeConfig()
 const route = useRoute()
 const router = useRouter()
 const integrationsStore = useIntegrationsStore()
+const authStore = useAuthStore()
+const isSuperAdmin = computed(() => authStore.isSuperAdmin)
 
 // Reactive data
 const showDisconnectModal = ref(false)
@@ -338,7 +350,8 @@ const connectionStatus = computed(() => {
 
 // Methods
 const disconnectSlack = async () => {
-  await integrationsStore.disconnectSlackApp()
+  const orgQuery = route?.query?.org || route?.query?.org_id || null
+  await integrationsStore.disconnectSlackApp(orgQuery ? String(orgQuery) : null)
   showDisconnectModal.value = false
 }
 

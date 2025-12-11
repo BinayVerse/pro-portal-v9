@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div class="flex items-center justify-between">
+    <div class="flex items-center justify-between" style="margin-top: 0">
       <div>
         <h1 class="text-2xl font-bold text-white mb-2">User Management</h1>
         <p class="text-gray-400">
@@ -10,22 +10,26 @@
       </div>
       <div class="flex items-center space-x-3">
         <button
-          @click="openBulkUplaod"
+          @click="!disableUserActions && openBulkUplaod()"
+          :disabled="disableUserActions"
           :class="[
             baseButtonClass,
             'bg-dark-800 text-white hover:bg-dark-700',
             'flex items-center space-x-2',
+            disableUserActions ? 'opacity-50 cursor-not-allowed' : '',
           ]"
         >
           <UIcon name="i-heroicons-cloud-arrow-up" class="w-4 h-4" />
           <span>Bulk Upload</span>
         </button>
         <button
-          @click="openAddUserModal"
+          @click="!disableUserActions && openAddUserModal()"
+          :disabled="disableUserActions"
           :class="[
             baseButtonClass,
             'bg-blue-600 hover:bg-blue-700 text-white',
             'flex items-center space-x-2',
+            disableUserActions ? 'opacity-50 cursor-not-allowed' : '',
           ]"
         >
           <UIcon name="i-heroicons-plus" class="w-4 h-4" />
@@ -34,6 +38,8 @@
       </div>
     </div>
 
+    <PlanUpgradeAlert :data="usageAlertData" @upgrade="goToPlans" />
+
     <!-- Stats Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       <!-- Total Users -->
@@ -41,7 +47,9 @@
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Total Users</p>
-            <p class="text-3xl font-bold text-white mt-2">{{ stats.totalUsers }}</p>
+            <p :class="`text-lg font-bold mt-2 ${usersTextColor}`">
+              {{ stats.totalUsers }} / {{ usersLimit }}
+            </p>
           </div>
           <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
             <UIcon name="i-heroicons-users" class="w-6 h-6 text-blue-400" />
@@ -54,7 +62,7 @@
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Active Users</p>
-            <p class="text-3xl font-bold text-white mt-2">{{ stats.activeUsers }}</p>
+            <p class="text-lg font-bold text-white mt-2">{{ stats.activeUsers }}</p>
           </div>
           <div class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
             <UIcon name="i-heroicons-check-circle" class="w-6 h-6 text-green-400" />
@@ -67,7 +75,7 @@
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Admins</p>
-            <p class="text-3xl font-bold text-white mt-2">{{ stats.adminUsers }}</p>
+            <p class="text-lg font-bold text-white mt-2">{{ stats.adminUsers }}</p>
           </div>
           <div class="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
             <UIcon name="i-heroicons-shield-check" class="w-6 h-6 text-purple-400" />
@@ -80,7 +88,7 @@
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">New This Month</p>
-            <p class="text-3xl font-bold text-white mt-2">{{ stats.newThisMonth }}</p>
+            <p class="text-lg font-bold text-white mt-2">{{ stats.newThisMonth }}</p>
           </div>
           <div class="w-12 h-12 bg-orange-500/20 rounded-lg flex items-center justify-center">
             <UIcon name="i-heroicons-user-plus" class="w-6 h-6 text-orange-400" />
@@ -277,11 +285,18 @@
             </div>
           </template>
         </UTable>
-        <div class="p-4 flex justify-end border-t border-dark-700">
+        <div class="p-4 flex items-center justify-between border-t border-dark-700">
+          <div class="flex items-center space-x-3">
+            <div class="text-sm text-gray-400 hidden sm:block">Rows per page</div>
+            <div class="w-24">
+              <USelect v-model="perPage" :options="perPageOptions" size="sm" />
+            </div>
+          </div>
+
           <UPagination
             v-model="page"
             :total="sortedRows.length"
-            :page-count="pageSize"
+            :page-count="computedPageCount"
             :show-first="true"
             :show-last="true"
             :show-edges="true"
@@ -660,6 +675,7 @@
 import { ref } from 'vue'
 import { z } from 'zod'
 import { useRoute } from 'vue-router'
+import PlanUpgradeAlert from '@/components/ui/PlanUpgradeAlert.vue'
 
 // Types
 interface ApiUser {
@@ -734,6 +750,9 @@ const profileStore = useProfileStore()
 const authStore = useAuthStore()
 const integrationsStore = useIntegrationsStore()
 
+const planDetails = computed(() => profileStore.getUserProfile?.plan_details || {})
+const usersLimit = computed(() => (planDetails.value as any)?.users || 0)
+
 const authUser = computed(() => authStore.getAuthUser)
 // WhatsApp connection status
 const isWhatsAppConnected = computed(() => {
@@ -752,6 +771,47 @@ const isWhatsAppConnected = computed(() => {
     return false
   }
 })
+
+const usersUsage = computed(() => {
+  const current = stats.value.totalUsers
+  const limit = usersLimit.value
+  const percentage = limit > 0 ? (current / limit) * 100 : 0
+
+  return {
+    name: 'Users',
+    current,
+    limit,
+    percentage: percentage,
+  }
+})
+
+const usageAlertData = computed(() => {
+  const metrics = [usersUsage.value]
+
+  return {
+    metrics,
+    exceededMetrics: metrics.filter((m) => m.percentage >= 100),
+    highMetrics: metrics.filter((m) => m.percentage >= 80 && m.percentage < 100),
+    hasExceeded: metrics.some((m) => m.percentage >= 100),
+    hasHigh: metrics.some((m) => m.percentage >= 80 && m.percentage < 100),
+  }
+})
+
+const disableUserActions = computed(() => usageAlertData.value.hasExceeded)
+
+const goToPlans = () => {
+  navigateTo('/admin/plans')
+}
+
+const getUsageColor = (current: number, limit?: number) => {
+  if (!limit) return 'text-white'
+  const percent = (current / limit) * 100
+  if (percent >= 100) return 'text-red-400'
+  if (percent >= 80) return 'text-orange-400'
+  return 'text-white'
+}
+
+const usersTextColor = computed(() => getUsageColor(stats.value.totalUsers, usersLimit.value))
 
 // Reactive state
 const phoneRef = ref(null)
@@ -899,11 +959,25 @@ const sortedRows = computed(() => {
 })
 
 const page = ref(1)
-const pageSize = ref(5) // rows per page
+const perPage = ref(5) // rows per page
+const perPageOptions = [
+  { label: '5', value: 5 },
+  { label: '10', value: 10 },
+  { label: '20', value: 20 },
+  { label: '50', value: 50 },
+  { label: 'All', value: 'all' },
+]
+const computedPageCount = computed(() =>
+  perPage.value === 'all' ? Math.max(sortedRows.value.length, 1) : (perPage.value as number),
+)
+watch(perPage, () => {
+  page.value = 1
+})
 
 const paginatedUsers = computed(() => {
-  const start = (page.value - 1) * pageSize.value
-  const end = start + pageSize.value
+  if (perPage.value === 'all') return sortedRows.value
+  const start = (page.value - 1) * perPage.value
+  const end = start + perPage.value
   return sortedRows.value.slice(start, end)
 })
 
@@ -1082,12 +1156,24 @@ const handlePrimaryContactUpdate = async () => {
   const currentPrimaryContact = usersStore.users.find((u) => u.primary_contact)
 
   // If the logged-in user is currently primary, unset them
+  const orgIdFromQuery =
+    route.query?.org || route.query?.org_id ? String(route.query?.org || route.query?.org_id) : null
   if (profileStore.userProfile.primary_contact) {
-    await usersStore.editUser(profileStore.userProfile.user_id, { primary_contact: false }, true)
+    await usersStore.editUser(
+      profileStore.userProfile.user_id,
+      { primary_contact: false },
+      true,
+      orgIdFromQuery,
+    )
   }
   // If another user is primary, unset them
   else if (currentPrimaryContact && currentPrimaryContact.user_id !== userForm.user_id) {
-    await usersStore.editUser(currentPrimaryContact.user_id, { primary_contact: false }, true)
+    await usersStore.editUser(
+      currentPrimaryContact.user_id,
+      { primary_contact: false },
+      true,
+      orgIdFromQuery,
+    )
   }
 
   // Optionally refresh profile or users list
@@ -1138,7 +1224,11 @@ const saveUser = async () => {
     }
 
     if (isEditMode.value && userForm.user_id) {
-      result = await usersStore.editUser(userForm.user_id, payload)
+      const orgIdFromQuery =
+        route?.query?.org || route?.query?.org_id
+          ? String(route.query?.org || route.query?.org_id)
+          : null
+      result = await usersStore.editUser(userForm.user_id, payload, false, orgIdFromQuery)
     } else {
       result = await usersStore.createUser(payload)
     }
@@ -1446,7 +1536,10 @@ const openPreview = async (file: File) => {
       route?.query?.org || route?.query?.org_id
         ? String(route.query?.org || route.query?.org_id)
         : null
-    const validationResponse = await usersStore.uploadAndValidateJson(parsedData as any, orgIdFromQuery)
+    const validationResponse = await usersStore.uploadAndValidateJson(
+      parsedData as any,
+      orgIdFromQuery,
+    )
 
     if (validationResponse.errors && validationResponse.errors.length > 0) {
       errors.value = validationResponse.errors.map(

@@ -148,10 +148,11 @@ export const useUsersStore = defineStore('usersStore', {
       }
     },
 
-    async editUser(id: string, user: Partial<OrganizationUser>, silent = false) {
+    async editUser(id: string, user: Partial<OrganizationUser>, silent = false, orgId?: string | null) {
       try {
+        const url = orgId ? `/api/users/${id}?org=${encodeURIComponent(String(orgId))}` : `/api/users/${id}`
         const response = await $fetch<{ status?: boolean; message?: string; errors?: any[] }>(
-          `/api/users/${id}`,
+          url,
           {
             method: 'PUT',
             body: user,

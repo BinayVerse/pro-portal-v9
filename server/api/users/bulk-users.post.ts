@@ -94,6 +94,11 @@ export default defineEventHandler(async (event) => {
       const contactNumber = row['Whatsapp Number']?.trim()
       const role = row.Role?.trim().toLowerCase()
       const roleId = role === 'user' ? 2 : 1
+      // Ensure roleId is numeric
+      if (!Number.isFinite(Number(roleId))) {
+        failedUsers.push({ Row: rowIndex + 1, errors: [{ field: 'Role', message: 'Invalid role id' }] })
+        continue
+      }
       const rowErrors: any[] = []
 
       try {
@@ -142,7 +147,7 @@ export default defineEventHandler(async (event) => {
 
         const result = await client.query(
           `INSERT INTO users (name, email, contact_number, role_id, password, org_id, added_by)
-           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING user_id`,
+           VALUES ($1, $2, $3, $4::int, $5, $6, $7::text) RETURNING user_id`,
           [name, email, contactNumber, roleId, hashedPassword, orgDetail.org_id, userId],
         )
 

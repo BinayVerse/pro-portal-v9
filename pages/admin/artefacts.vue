@@ -1,14 +1,19 @@
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <ArtefactsHeader @upload="showUploadModal = true" />
+    <ArtefactsHeader @upload="showUploadModal = true" :disabled="disableUpload" />
+
+    <!-- Plan Usage Alerts -->
+    <PlanUpgradeAlert :data="usageAlertData" @upgrade="goToPlans" />
 
     <!-- Stats Cards -->
     <ArtefactsStats
       :total-artefacts="totalArtefacts"
+      :artefacts-limit="(planDetails as any)?.artefacts"
       :processed-artefacts="processedArtefacts"
       :total-categories="totalCategories"
-      :total-size="totalSize"
+      :total-size="totalSizeGB"
+      :storage-limit="(planDetails as any)?.storage_limit_gb"
       :loading="isLoadingStats"
     />
 
@@ -140,10 +145,15 @@ import ArtefactUploadModal from '~/components/admin/artefacts/ArtefactUploadModa
 import ArtefactSummaryModal from '~/components/admin/artefacts/ArtefactSummaryModal.vue'
 import ArtefactViewModal from '~/components/admin/artefacts/ArtefactViewModal.vue'
 import ConfirmPopup from '~/components/ui/ConfirmPopup.vue'
+import PlanUpgradeAlert from '~/components/ui/PlanUpgradeAlert.vue'
 
 // Import stores
 import { useAuthStore } from '~/stores/auth'
 import { useArtefactsStore } from '~/stores/artefacts'
+import { useProfileStore } from '~/stores/profile'
+const profileStore = useProfileStore()
+
+const planDetails = computed(() => profileStore.getUserProfile?.plan_details || {})
 
 // Reactive data
 const searchQuery = ref('')
@@ -160,6 +170,10 @@ const selectedViewArtefact = ref(null)
 const showConfirmPopup = ref(false)
 const categoryToDelete = ref('')
 const isDeletingCategory = ref(false)
+
+const disableUpload = computed(() => {
+  return usageAlertData.value.hasExceeded === true
+})
 
 // Initialize stores
 const authStore = useAuthStore()
@@ -219,7 +233,49 @@ const isLoadingStats = computed(() => {
 const totalArtefacts = computed(() => stats.value?.totalArtefacts || 0)
 const processedArtefacts = computed(() => stats.value?.processedArtefacts || 0)
 const totalCategories = computed(() => stats.value?.totalCategories || 0)
+const totalSizeGB = computed(
+  () => formatGB(bytesToGB(parseSizeToBytes(stats.value?.totalSize))) || '0 GB',
+)
 const totalSize = computed(() => stats.value?.totalSize || '0 Bytes')
+
+// ----------------------
+// Size helpers
+// ----------------------
+const parseSizeToBytes = (sizeStr: string): number => {
+  if (!sizeStr || typeof sizeStr !== 'string') return 0
+
+  const units: Record<string, number> = {
+    bytes: 1,
+    b: 1,
+    kb: 1024,
+    mb: 1024 ** 2,
+    gb: 1024 ** 3,
+    tb: 1024 ** 4,
+  }
+
+  const match = sizeStr
+    .trim()
+    .toLowerCase()
+    .match(/^([\d.]+)\s*([a-z]+)$/)
+  if (!match) return 0
+
+  const value = parseFloat(match[1])
+  const unit = match[2]
+  const multiplier = units[unit] || 1
+
+  return Math.round(value * multiplier)
+}
+
+const bytesToGB = (bytes: number): number => bytes / 1024 ** 3
+
+// const formatGB = (gb: number): string => {
+//   if (gb < 1) return (gb * 1024).toFixed(1) + ' MB'
+//   return gb.toFixed(2) + ' GB'
+// }
+
+const formatGB = (gb: number): string => {
+  return gb < 0.1 ? parseFloat(gb.toFixed(3)) + ' GB' : gb.toFixed(2) + ' GB'
+}
 
 const filteredArtefacts = computed(() => {
   return artefacts.value.filter((artefact) => {
@@ -465,34 +521,15 @@ const downloadArtefact = async (artefact: any) => {
 
 // Upload handlers
 const handleFileUploaded = async (artefact: any) => {
-  // Stop any existing auto-processing/polling and start a fresh cycle
-  try {
-    // Ensure any existing polling is cancelled
-    artefactsStore.stopAutoProcessing()
-
-    // Start fresh polling so fetchArtefacts can detect newly processed documents during the fetch
-    artefactsStore.startAutoProcessing()
-
-    // Immediately refresh the artefacts list to reflect the newly uploaded file
-    await artefactsStore.fetchArtefacts(orgId.value)
-  } catch (e) {
-    // Silent: UI already shows upload success/failure in the modal
-  }
+  artefactsStore.stopAutoProcessing() // ⬅ STOP WHEN UPLOAD COMPLETES OR STARTS
+  await artefactsStore.fetchArtefacts(orgId.value)
+  artefactsStore.startAutoProcessing() // ⬅ RESTART AFTER FINISH
 }
 
-const handleGoogleDriveUploaded = async (newArtefacts: any[]) => {
-  try {
-    // Cancel any existing polling
-    artefactsStore.stopAutoProcessing()
-
-    // Start fresh polling so fetchArtefacts can detect newly processed documents during the fetch
-    artefactsStore.startAutoProcessing()
-
-    // Refresh artefacts list
-    await artefactsStore.fetchArtefacts(orgId.value)
-  } catch (e) {
-    // Silent
-  }
+const handleGoogleDriveUploaded = async (files: any[]) => {
+  artefactsStore.stopAutoProcessing() // ⬅ STOP
+  await artefactsStore.fetchArtefacts(orgId.value)
+  artefactsStore.startAutoProcessing() // ⬅ RESTART
 }
 
 // Category management methods
@@ -612,6 +649,71 @@ const initializePage = async () => {
   } catch (error) {
     // Error handled silently
   }
+}
+
+// Storage usage metric
+const storageUsageValue = computed(() => {
+  const currentGB = bytesToGB(
+    stats.value?.totalSizeBytes ??
+      (typeof stats.value?.totalSizeBytes === 'number' ? stats.value?.totalSizeBytes : 0),
+  )
+  const limitGB = (planDetails.value as any)?.storage_limit_gb || 0
+  const percentage = limitGB > 0 ? (currentGB / limitGB) * 100 : 0
+
+  return {
+    current: currentGB,
+    limit: limitGB,
+    percentage: percentage,
+    display: limitGB > 0 ? `${currentGB.toFixed(2)}GB / ${limitGB}GB` : `${currentGB.toFixed(2)}GB`,
+  }
+})
+
+// Aggregated usage alert data (same structure as analytics)
+const usageAlertData = computed(() => {
+  const metrics: any[] = []
+
+  // Artefacts limit
+  if ((planDetails.value as any)?.artefacts > 0) {
+    const current = totalArtefacts.value
+    const limit = (planDetails.value as any).artefacts
+    const percentage = limit > 0 ? (current / limit) * 100 : 0
+
+    metrics.push({
+      name: 'Artefacts',
+      current,
+      limit,
+      percentage: percentage,
+    })
+  }
+
+  // Storage limit
+  if ((planDetails.value as any)?.storage_limit_gb > 0) {
+    const current = storageUsageValue.value.current
+    const limit = storageUsageValue.value.limit
+    const percentage = storageUsageValue.value.percentage
+
+    metrics.push({
+      name: 'Storage',
+      current,
+      limit,
+      percentage,
+    })
+  }
+
+  const exceededMetrics = metrics.filter((m) => m.percentage >= 100)
+  const highMetrics = metrics.filter((m) => m.percentage >= 80 && m.percentage < 100)
+
+  return {
+    metrics,
+    exceededMetrics,
+    highMetrics,
+    hasExceeded: exceededMetrics.length > 0,
+    hasHigh: highMetrics.length > 0,
+  }
+})
+
+const goToPlans = () => {
+  navigateTo('/admin/plans')
 }
 
 // Watch for orgId changes and fetch data

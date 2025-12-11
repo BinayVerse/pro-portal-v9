@@ -21,6 +21,7 @@ export const useArtefactsStore = defineStore('artefacts', {
       totalArtefacts: 0,
       processedArtefacts: 0,
       totalCategories: 0,
+      totalSizeBytes: 0,
       totalSize: '0 Bytes'
     },
     isLoadingArtefacts: false,
@@ -47,6 +48,7 @@ export const useArtefactsStore = defineStore('artefacts', {
       totalArtefacts: 0,
       processedArtefacts: 0,
       totalCategories: 0,
+      totalSizeBytes: 0,
       totalSize: '0 Bytes'
     },
     isArtefactsLoading: (state): boolean => state.isLoadingArtefacts,
@@ -96,9 +98,8 @@ export const useArtefactsStore = defineStore('artefacts', {
           data: ArtefactGoogleDriveFile[]
           otherFiles: number
           message: string
-        }>('/api/artefacts/google-drive-fetch', {
-          method: 'POST',
-          body: { folderUrl },
+        }>(`/api/artefacts/google-drive-fetch?folderUrl=${encodeURIComponent(folderUrl)}`, {
+          method: 'GET',
         })
 
         this.googleDriveFiles = data.data || []
@@ -380,7 +381,10 @@ export const useArtefactsStore = defineStore('artefacts', {
           }
         }
 
-        const url = orgId ? `/api/artefacts/list?org=${encodeURIComponent(String(orgId))}` : '/api/artefacts/list'
+        let url = `/api/artefacts/list?timezone=${encodeURIComponent(userTimezone)}`
+        if (orgId) {
+          url += `&org=${encodeURIComponent(String(orgId))}`
+        }
 
         const response = await $fetch<{
           statusCode: number
@@ -396,8 +400,7 @@ export const useArtefactsStore = defineStore('artefacts', {
           }
           message: string
         }>(url, {
-          method: 'POST',
-          body: { timezone: userTimezone },
+          method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -470,8 +473,10 @@ export const useArtefactsStore = defineStore('artefacts', {
           throw new Error('Authentication required')
         }
 
-        const url = orgId ? `/api/artefacts/view?org=${encodeURIComponent(String(orgId))}` : '/api/artefacts/view'
-        const body: any = { artefactId }
+        let url = `/api/artefacts/view?artefactId=${encodeURIComponent(String(artefactId))}`
+        if (orgId) {
+          url += `&org=${encodeURIComponent(String(orgId))}`
+        }
 
         const response = await $fetch<{
           statusCode: number
@@ -483,8 +488,7 @@ export const useArtefactsStore = defineStore('artefacts', {
           contentType?: string
           docType?: string
         }>(url, {
-          method: 'POST',
-          body,
+          method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -533,7 +537,7 @@ export const useArtefactsStore = defineStore('artefacts', {
           message: string
           data?: any
         }>(url, {
-          method: 'POST',
+          method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -610,8 +614,10 @@ export const useArtefactsStore = defineStore('artefacts', {
           throw new Error('Authentication required')
         }
 
-        const url = orgId ? `/api/artefacts/delete?org=${encodeURIComponent(String(orgId))}` : '/api/artefacts/delete'
-        const body: any = { artefactId, artefactName }
+        let url = `/api/artefacts/delete?artefactId=${encodeURIComponent(String(artefactId))}&artefactName=${encodeURIComponent(artefactName)}`
+        if (orgId) {
+          url += `&org=${encodeURIComponent(String(orgId))}`
+        }
 
         const response = await $fetch<{
           statusCode: number
@@ -619,8 +625,7 @@ export const useArtefactsStore = defineStore('artefacts', {
           message: string
           data: any
         }>(url, {
-          method: 'POST',
-          body,
+          method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -655,8 +660,10 @@ export const useArtefactsStore = defineStore('artefacts', {
           throw new Error('Authentication required')
         }
 
-        const body: any = { fileName }
-        if (orgId) body.org_id = orgId
+        let url = `/api/artefacts/check-exists?fileName=${encodeURIComponent(fileName)}`
+        if (orgId) {
+          url += `&org_id=${encodeURIComponent(String(orgId))}`
+        }
 
         const response = await $fetch<{
           statusCode: number
@@ -668,9 +675,8 @@ export const useArtefactsStore = defineStore('artefacts', {
             category: string
             lastUpdated: string
           }
-        }>('/api/artefacts/check-exists', {
-          method: 'POST',
-          body,
+        }>(url, {
+          method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -707,8 +713,11 @@ export const useArtefactsStore = defineStore('artefacts', {
           throw new Error('Authentication required')
         }
 
-        const body: any = { fileNames }
-        if (orgId) body.org_id = orgId
+        const fileNamesParam = fileNames.map(f => encodeURIComponent(f)).join(',')
+        let url = `/api/artefacts/check-exists?fileNames=${fileNamesParam}`
+        if (orgId) {
+          url += `&org_id=${encodeURIComponent(String(orgId))}`
+        }
 
         const response = await $fetch<{
           statusCode: number
@@ -724,9 +733,8 @@ export const useArtefactsStore = defineStore('artefacts', {
               lastUpdated: string
             }
           }>
-        }>('/api/artefacts/check-exists', {
-          method: 'POST',
-          body,
+        }>(url, {
+          method: 'GET',
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -757,7 +765,7 @@ export const useArtefactsStore = defineStore('artefacts', {
     // Auto-processing methods
     startAutoProcessing() {
       if (this.pollingInterval) {
-        this.stopAutoProcessing()
+        return      // Already running — don’t restart
       }
 
       this.isAutoProcessingEnabled = true
@@ -771,10 +779,8 @@ export const useArtefactsStore = defineStore('artefacts', {
         this.pollingInterval = null
       }
 
-      // Clear processing state but keep attempted summarizations to avoid retries
       this.summarizingDocs.clear()
-      // Reassign to a new Set to ensure Vue reactivity detects the change
-      this.summarizingDocs = new Set<number>(this.summarizingDocs)
+      this.summarizingDocs = new Set<number>()
     },
 
     startPolling() {
@@ -784,14 +790,14 @@ export const useArtefactsStore = defineStore('artefacts', {
         try {
           await this.fetchArtefacts()
 
-          // Stop polling only if all documents are processed AND summarized
+          // Stop polling when everything is processed
           if (this.allDocumentsProcessed && this.allDocumentsSummarized) {
             this.stopAutoProcessing()
           } else {
             this.adjustPollingInterval()
           }
         } catch (error) {
-          // Silent error handling for polling
+          // silent
         }
       }, this.pollingIntervalMs)
     },
@@ -803,11 +809,11 @@ export const useArtefactsStore = defineStore('artefacts', {
       const newlyProcessedDocs = currentDocs.filter(currentDoc => {
         const previousDoc = previousDocs.find(prev => prev.id === currentDoc.id)
         return previousDoc &&
-               previousDoc.status !== 'processed' &&
-               currentDoc.status === 'processed' &&
-               currentDoc.summarized === 'No' &&
-               !this.summarizingDocs.has(currentDoc.id) &&
-               !this.attemptedSummarizations.has(currentDoc.id)
+          previousDoc.status !== 'processed' &&
+          currentDoc.status === 'processed' &&
+          currentDoc.summarized === 'No' &&
+          !this.summarizingDocs.has(currentDoc.id) &&
+          !this.attemptedSummarizations.has(currentDoc.id)
       })
 
       if (newlyProcessedDocs.length > 0) {
@@ -846,7 +852,7 @@ export const useArtefactsStore = defineStore('artefacts', {
           })
 
           // Add small delay between starting each summarization
-          setTimeout(() => {}, 500)
+          setTimeout(() => { }, 500)
         }
       }
     },

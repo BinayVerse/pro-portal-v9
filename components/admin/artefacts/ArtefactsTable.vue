@@ -183,11 +183,18 @@
     </UTable>
 
     <!-- Pagination Footer -->
-    <div class="p-4 flex justify-end border-t border-dark-700" v-if="sortedRows.length > 0">
+    <div class="p-4 flex items-center justify-between border-t border-dark-700" v-if="sortedRows.length > 0">
+      <div class="flex items-center space-x-3">
+        <div class="text-sm text-gray-400 hidden sm:block">Rows per page</div>
+        <div class="w-24">
+          <USelect v-model="perPage" :options="perPageOptions" size="sm" />
+        </div>
+      </div>
+
       <UPagination
         v-model="page"
         :total="sortedRows.length"
-        :page-count="pageSize"
+        :page-count="computedPageCount"
         :show-first="true"
         :show-last="true"
         :show-edges="true"
@@ -228,7 +235,16 @@ const props = withDefaults(defineProps<Props>(), {
 
 // Pagination state
 const page = ref(1)
-const pageSize = 5
+const perPage = ref(5)
+const perPageOptions = [
+  { label: '5', value: 5 },
+  { label: '10', value: 10 },
+  { label: '20', value: 20 },
+  { label: '50', value: 50 },
+  { label: 'All', value: 'all' },
+]
+const computedPageCount = computed(() => (perPage.value === 'all' ? Math.max(sortedRows.value.length, 1) : (perPage.value as number)))
+watch(perPage, () => { page.value = 1 })
 
 defineEmits<{
   viewArtefact: [artefact: Artefact]
@@ -389,8 +405,11 @@ const sortedRows = computed(() => {
 
 // Paginated slice
 const paginatedRows = computed(() => {
-  const start = (page.value - 1) * pageSize
-  const end = start + pageSize
+  if (perPage.value === 'all') {
+    return sortedRows.value.map((r: any, idx: number) => ({ ...r, sl_no: idx + 1 }))
+  }
+  const start = (page.value - 1) * (perPage.value as number)
+  const end = start + (perPage.value as number)
   return sortedRows.value.slice(start, end)
 })
 

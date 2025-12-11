@@ -2,7 +2,7 @@
   <AdminLayout>
     <div class="space-y-6">
       <!-- Header with Date Range -->
-      <div class="flex justify-between items-center">
+      <div class="flex justify-between items-center" style="margin-top: 0">
         <div>
           <h1 class="text-2xl font-bold text-white">Analytics & Reports</h1>
           <p class="text-gray-400">Comprehensive usage reports</p>
@@ -23,15 +23,18 @@
         </div>
       </div>
 
+      <!-- Plan Upgrade Alert (aggregated, single modal) -->
+      <PlanUpgradeAlert :data="usageAlertData" @upgrade="navigateToPlans" />
+
       <!-- Top Metrics -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-4">
         <!-- Total Queries -->
         <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-400 text-sm font-medium">Total Queries</p>
-              <p class="text-3xl font-bold text-white mt-2">
-                {{ loadingStates.metrics ? '...' : totalQueriesCount.toLocaleString() }}
+              <p :class="`text-lg font-bold mt-2 ${queriesTextColor}`">
+                {{ loadingStates.metrics ? '...' : queriesUsageValue.display }}
               </p>
             </div>
             <div v-if="loadingStates.metrics" class="w-12 h-12 flex items-center justify-center">
@@ -39,29 +42,23 @@
             </div>
             <div
               v-else
-              class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center"
+              :class="`w-12 h-12 ${queriesUsageColor} rounded-lg flex items-center justify-center`"
             >
-              <UIcon name="heroicons:chart-bar" class="w-6 h-6 text-blue-400" />
+              <UIcon name="heroicons:chart-bar" :class="`w-6 h-6 ${queriesIconColor}`" />
             </div>
           </div>
         </div>
 
-        <!-- Active Users -->
+        <!-- Total Users -->
         <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-400 text-sm font-medium">Total Users</p>
               <p
-                class="text-3xl font-bold text-white mt-2 cursor-pointer"
+                :class="`text-lg font-bold mt-2 cursor-pointer ${usersTextColor}`"
                 @click="showOrganizationUsers"
               >
-                {{
-                  loadingStates.metrics
-                    ? '...'
-                    : (
-                        (analyticsStore.organizationDetails as any)?.total_users || 0
-                      ).toLocaleString()
-                }}
+                {{ loadingStates.metrics ? '...' : usersUsageValue.display }}
               </p>
             </div>
             <div v-if="loadingStates.metrics" class="w-12 h-12 flex items-center justify-center">
@@ -69,29 +66,23 @@
             </div>
             <div
               v-else
-              class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center"
+              :class="`w-12 h-12 ${usersUsageColor} rounded-lg flex items-center justify-center`"
             >
-              <UIcon name="heroicons:users" class="w-6 h-6 text-green-400" />
+              <UIcon name="heroicons:users" :class="`w-6 h-6 ${usersIconColor}`" />
             </div>
           </div>
         </div>
 
-        <!-- Documents Created -->
+        <!-- Artefacts Created -->
         <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-400 text-sm font-medium">Artefacts Created</p>
               <p
-                class="text-3xl font-bold text-white mt-2 cursor-pointer"
+                :class="`text-lg font-bold mt-2 cursor-pointer ${artefactsTextColor}`"
                 @click="showOrganizationDocuments"
               >
-                {{
-                  loadingStates.metrics
-                    ? '...'
-                    : (
-                        (analyticsStore.organizationDetails as any)?.docs_uploaded || 0
-                      ).toLocaleString()
-                }}
+                {{ loadingStates.metrics ? '...' : artefactsUsageValue.display }}
               </p>
             </div>
             <div v-if="loadingStates.metrics" class="w-12 h-12 flex items-center justify-center">
@@ -99,9 +90,9 @@
             </div>
             <div
               v-else
-              class="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center"
+              :class="`w-12 h-12 ${artefactsUsageColor} rounded-lg flex items-center justify-center`"
             >
-              <UIcon name="heroicons:document-text" class="w-6 h-6 text-purple-400" />
+              <UIcon name="heroicons:document-text" :class="`w-6 h-6 ${artefactsIconColor}`" />
             </div>
           </div>
         </div>
@@ -112,10 +103,10 @@
             <div>
               <p class="text-gray-400 text-sm font-medium">Token Usage</p>
               <p
-                class="text-3xl font-bold text-white mt-2 cursor-pointer"
+                :class="`text-lg font-bold mt-2 cursor-pointer ${tokensTextColor}`"
                 @click="showOrganizationTokenUsage"
               >
-                {{ loadingStates.metrics ? '...' : formatCompactNumber(totalTokens) }}
+                {{ loadingStates.metrics ? '...' : tokensUsageValue.display }}
               </p>
             </div>
             <div v-if="loadingStates.metrics" class="w-12 h-12 flex items-center justify-center">
@@ -123,9 +114,9 @@
             </div>
             <div
               v-else
-              class="w-12 h-12 bg-orange-500/20 rounded-lg flex items-center justify-center"
+              :class="`w-12 h-12 ${tokensUsageColor} rounded-lg flex items-center justify-center`"
             >
-              <UIcon name="heroicons:bolt" class="w-6 h-6 text-orange-400" />
+              <UIcon name="heroicons:bolt" :class="`w-6 h-6 ${tokensIconColor}`" />
             </div>
           </div>
         </div>
@@ -423,37 +414,275 @@ definePageMeta({
   layout: 'admin',
   middleware: 'auth',
 })
-import { ref, onMounted, computed, watch } from 'vue'
+
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useNotification } from '@/composables/useNotification'
 import { useAnalyticsStore } from '@/stores/analytics'
 import { useAuthStore } from '@/stores/auth'
+import { useProfileStore } from '@/stores/profile'
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
-
-dayjs.extend(utc)
-dayjs.extend(timezone)
-
-// Import chart components
 import StackedBarChart from '@/components/charts/StackedBarChart.vue'
 import PieChart from '@/components/charts/PieChart.vue'
 import StackedAreaChart from '@/components/charts/StackedAreaChart.vue'
 import DonutChart from '@/components/charts/DonutChart.vue'
+import PlanUpgradeAlert from '@/components/ui/PlanUpgradeAlert.vue'
 import { getColorsForLabels, orderLabels } from '@/utils/chartColors'
+import { useRoute } from 'vue-router'
+import { navigateTo } from '#app'
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
+
+type MetricUsage = {
+  name: string
+  current: number
+  limit: number
+  percentage: number
+}
 
 const { showNotification } = useNotification()
 const analyticsStore = useAnalyticsStore()
 const authStore = useAuthStore()
+const profileStore = useProfileStore()
+
 const authUser = computed(() => authStore.getAuthUser)
-import { useRoute } from 'vue-router'
 const route = useRoute()
+
+// SSR-safe flags
+const isMounted = ref(false)
 
 // Computed organization ID (use route query for superadmin)
 const organizationId = computed(() => {
-  const qOrg = route.query?.org || route.query?.org_id || null
+  const qOrg = (route.query?.org || route.query?.org_id || null) as string | null
   if (authUser.value?.role_id === 0 && qOrg) return String(qOrg)
   return authUser.value?.org_id
 })
+
+// Get plan details from profile
+const planDetails = computed(() => {
+  return profileStore.getUserProfile?.plan_details || null
+})
+
+// Computed properties for metric colors
+const queriesUsageColor = computed(() => {
+  return getUsageColorClass(totalQueriesCount.value, planDetails.value?.limit_requests)
+})
+
+const queriesIconColor = computed(() => {
+  return getUsageIconColorClass(totalQueriesCount.value, planDetails.value?.limit_requests)
+})
+
+const queriesTextColor = computed(() => {
+  return getUsageTextColorClass(totalQueriesCount.value, planDetails.value?.limit_requests)
+})
+
+const usersUsageColor = computed(() => {
+  const currentUsers = Number((analyticsStore.organizationDetails as any)?.total_users || 0)
+  return getUsageColorClass(currentUsers, planDetails.value?.users)
+})
+
+const usersIconColor = computed(() => {
+  const currentUsers = Number((analyticsStore.organizationDetails as any)?.total_users || 0)
+  return getUsageIconColorClass(currentUsers, planDetails.value?.users)
+})
+
+const usersTextColor = computed(() => {
+  const currentUsers = Number((analyticsStore.organizationDetails as any)?.total_users || 0)
+  return getUsageTextColorClass(currentUsers, planDetails.value?.users)
+})
+
+const artefactsUsageColor = computed(() => {
+  const currentArtefacts = Number((analyticsStore.organizationDetails as any)?.docs_uploaded || 0)
+  return getUsageColorClass(currentArtefacts, planDetails.value?.artefacts)
+})
+
+const artefactsIconColor = computed(() => {
+  const currentArtefacts = Number((analyticsStore.organizationDetails as any)?.docs_uploaded || 0)
+  return getUsageIconColorClass(currentArtefacts, planDetails.value?.artefacts)
+})
+
+const artefactsTextColor = computed(() => {
+  const currentArtefacts = Number((analyticsStore.organizationDetails as any)?.docs_uploaded || 0)
+  return getUsageTextColorClass(currentArtefacts, planDetails.value?.artefacts)
+})
+
+const tokensUsageColor = computed(() => {
+  return getUsageColorClass(
+    totalTokens.value,
+    planDetails.value?.metadata?.total_tokens as number | undefined,
+  )
+})
+
+const tokensIconColor = computed(() => {
+  return getUsageIconColorClass(
+    totalTokens.value,
+    planDetails.value?.metadata?.total_tokens as number | undefined,
+  )
+})
+
+const tokensTextColor = computed(() => {
+  return getUsageTextColorClass(
+    totalTokens.value,
+    planDetails.value?.metadata?.total_tokens as number | undefined,
+  )
+})
+
+// Usage metrics computed properties
+const usersUsageValue = computed(() => {
+  const currentUsers = Number((analyticsStore.organizationDetails as any)?.total_users || 0)
+  const limit = planDetails.value?.users || 0
+  const percentage = limit > 0 ? (currentUsers / limit) * 100 : 0
+
+  const result = {
+    current: currentUsers,
+    limit,
+    percentage: percentage,
+    display:
+      limit > 0
+        ? `${currentUsers.toLocaleString()} / ${limit.toLocaleString()}`
+        : currentUsers.toLocaleString(),
+  }
+
+  return result
+})
+
+const queriesUsageValue = computed(() => {
+  const current = totalQueriesCount.value || 0
+  const limit = planDetails.value?.limit_requests || 0
+  const percentage = limit > 0 ? (current / limit) * 100 : 0
+
+  return {
+    current,
+    limit,
+    percentage: percentage,
+    display:
+      limit > 0
+        ? `${formatCompactNumber(current)} / ${formatCompactNumber(limit)}`
+        : formatCompactNumber(current),
+  }
+})
+
+const artefactsUsageValue = computed(() => {
+  const current = Number((analyticsStore.organizationDetails as any)?.docs_uploaded || 0)
+  const limit = planDetails.value?.artefacts || 0
+  const percentage = limit > 0 ? (current / limit) * 100 : 0
+
+  return {
+    current,
+    limit,
+    percentage: percentage,
+    display:
+      limit > 0
+        ? `${current.toLocaleString()} / ${limit.toLocaleString()}`
+        : current.toLocaleString(),
+  }
+})
+
+const tokensUsageValue = computed(() => {
+  const current = totalTokens.value || 0
+  const limit = (planDetails.value?.metadata?.total_tokens as number) || 0
+  const percentage = limit > 0 ? (current / limit) * 100 : 0
+
+  return {
+    current,
+    limit,
+    percentage: percentage,
+    display:
+      limit > 0
+        ? `${formatCompactNumber(current)} / ${formatCompactNumber(limit)}`
+        : formatCompactNumber(current),
+  }
+})
+
+// Aggregated data for PlanUpgradeAlert
+const usageAlertData = computed(() => {
+  const metrics: MetricUsage[] = []
+
+  if (usersUsageValue.value.limit > 0) {
+    metrics.push({
+      name: 'Users',
+      current: usersUsageValue.value.current,
+      limit: usersUsageValue.value.limit,
+      percentage: usersUsageValue.value.percentage,
+    })
+  }
+
+  if (queriesUsageValue.value.limit > 0) {
+    metrics.push({
+      name: 'Queries',
+      current: queriesUsageValue.value.current,
+      limit: queriesUsageValue.value.limit,
+      percentage: queriesUsageValue.value.percentage,
+    })
+  }
+
+  if (artefactsUsageValue.value.limit > 0) {
+    metrics.push({
+      name: 'Artefacts',
+      current: artefactsUsageValue.value.current,
+      limit: artefactsUsageValue.value.limit,
+      percentage: artefactsUsageValue.value.percentage,
+    })
+  }
+
+  if (tokensUsageValue.value.limit > 0) {
+    metrics.push({
+      name: 'Tokens',
+      current: tokensUsageValue.value.current,
+      limit: tokensUsageValue.value.limit,
+      percentage: tokensUsageValue.value.percentage,
+    })
+  }
+
+  const exceededMetrics = metrics.filter((m) => m.percentage >= 100)
+  const highMetrics = metrics.filter((m) => m.percentage >= 80 && m.percentage < 100)
+
+  return {
+    metrics,
+    exceededMetrics,
+    highMetrics,
+    hasExceeded: exceededMetrics.length > 0,
+    hasHigh: highMetrics.length > 0,
+  }
+})
+
+// Format number in compact form (e.g., 1000 -> 1K)
+const formatCompactNumber = (value: number) => {
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(1)}M`
+  }
+  if (value >= 1_000) {
+    return `${(value / 1_000).toFixed(1)}K`
+  }
+  return value.toLocaleString()
+}
+
+// Helper function to calculate usage percentage and determine color
+const getUsageColorClass = (current: number, limit: number | undefined) => {
+  if (!limit) return 'bg-green-500/20'
+  const percentage = (current / limit) * 100
+  if (percentage >= 100) return 'bg-red-500/20'
+  if (percentage >= 80) return 'bg-orange-500/20'
+  return 'bg-green-500/20'
+}
+
+const getUsageIconColorClass = (current: number, limit: number | undefined) => {
+  if (!limit) return 'text-green-400'
+  const percentage = (current / limit) * 100
+  if (percentage >= 100) return 'text-red-400'
+  if (percentage >= 80) return 'text-orange-400'
+  return 'text-green-400'
+}
+
+const getUsageTextColorClass = (current: number, limit: number | undefined) => {
+  if (!limit) return 'text-white'
+  const percentage = (current / limit) * 100
+  if (percentage >= 100) return 'text-red-400'
+  if (percentage >= 80) return 'text-orange-400'
+  return 'text-white'
+}
 
 const loading = ref(true)
 const selectedTimeRange = ref('7')
@@ -476,7 +705,6 @@ const loadingStates = ref({
   topDocuments: true,
   frequentQuestions: true,
 })
-
 
 // Time range options
 const timeRangeOptions = [
@@ -516,6 +744,7 @@ const getLocalDateString = (date: dayjs.Dayjs, timeZone: string) => {
 
 const setAllLoadingStates = (value: boolean) => {
   Object.keys(loadingStates.value).forEach((key) => {
+    // @ts-ignore
     loadingStates.value[key] = value
   })
   loading.value = value
@@ -557,7 +786,7 @@ function transformUserAppWiseData(result: any) {
   const plainData = JSON.parse(JSON.stringify(result))
   if (!Array.isArray(plainData)) return []
 
-  const allApps = new Set()
+  const allApps = new Set<string>()
   plainData.forEach((user: any) => {
     if (Array.isArray(user.app_wise_usage)) {
       user.app_wise_usage.forEach((app: any) => {
@@ -566,13 +795,11 @@ function transformUserAppWiseData(result: any) {
     }
   })
 
-  // Convert to ordered array based on canonical app order
   const allAppsOrdered = orderLabels(Array.from(allApps))
 
   return plainData.map((user: any) => {
     const usage: Record<string, number> = {}
-    // Initialize keys in the desired order to ensure stable insertion order
-    allAppsOrdered.forEach((app) => (usage[app as string] = 0))
+    allAppsOrdered.forEach((app) => (usage[app] = 0))
 
     if (Array.isArray(user.app_wise_usage)) {
       user.app_wise_usage.forEach((app: any) => {
@@ -603,12 +830,10 @@ const stackedChartData = computed(() => {
 
 const pieChartData = computed(() => {
   if (!analyticsStore.appTokenDetails?.length) return []
-  // Build a map of app name -> total tokens
   const map: Record<string, number> = {}
   analyticsStore.appTokenDetails.forEach((app: any) => {
     map[app.name || 'Unknown App'] = parseInt(app.total_tokens) || 0
   })
-  // Return values in the ordered label sequence
   return pieChartLabelsOrdered.value.map((label) => map[label] ?? 0)
 })
 
@@ -617,9 +842,7 @@ const pieChartLabels = computed(() => {
   return analyticsStore.appTokenDetails.map((app: any) => app.name || 'Unknown App')
 })
 
-// Ensure labels appear in canonical app order
 const pieChartLabelsOrdered = computed(() => orderLabels(pieChartLabels.value))
-
 const pieChartColors = computed(() => getColorsForLabels(pieChartLabelsOrdered.value))
 
 const stackedAreaChartData = computed(() => {
@@ -640,7 +863,6 @@ const stackedAreaChartData = computed(() => {
     })
   })
 
-  // Add dates from selected range
   const { startDate, endDate } = dateRange.value
   let currentDate = dayjs(startDate)
   const endDateObj = dayjs(endDate)
@@ -653,7 +875,7 @@ const stackedAreaChartData = computed(() => {
   const sortedDates = Array.from(allDates).sort()
 
   return topUsers.map((user: any) => {
-    const dateMap = new Map()
+    const dateMap = new Map<string, number>()
     user.token_usage_details?.forEach((detail: any) => {
       dateMap.set(detail.date, parseInt(detail.total_tokens) || 0)
     })
@@ -665,7 +887,7 @@ const stackedAreaChartData = computed(() => {
 
     return {
       name: user.name || 'Unknown User',
-      data: data,
+      data,
     }
   })
 })
@@ -746,27 +968,21 @@ const frequentQuestions = computed(() => {
     .map((q: any, index: number) => ({
       id: index + 1,
       question: q.representative,
-      // prefer total_count (actual occurrences) if available, fallback to number of distinct similar questions
       count: Number(q.total_count ?? q.similar_questions?.length ?? 1),
       category: 'General',
     }))
-    .sort((a: { count: number }, b: { count: number }) => b.count - a.count)
+    .sort((a, b) => b.count - a.count)
     .slice(0, 10)
 })
 
 const splitFrequentQuestions = computed(() => {
   const items = frequentQuestions.value
-
-  // Split into two columns with higher counts in the first column
-  const firstColumn = []
-  const secondColumn = []
+  const firstColumn: any[] = []
+  const secondColumn: any[] = []
 
   for (let i = 0; i < items.length; i++) {
-    if (i % 2 === 0) {
-      firstColumn.push(items[i])
-    } else {
-      secondColumn.push(items[i])
-    }
+    if (i % 2 === 0) firstColumn.push(items[i])
+    else secondColumn.push(items[i])
   }
 
   return [firstColumn, secondColumn]
@@ -816,33 +1032,28 @@ const fetchData = async () => {
     const { startDate, endDate, timeZone: userTimeZone } = dateRange.value
 
     await Promise.allSettled([
-      // Metrics and area chart data
       analyticsStore
         .fetchTokenWiseDetail(organizationId.value, startDate, endDate, userTimeZone)
         .finally(() => {
           loadingStates.value.metrics = false
         }),
 
-      // Category-wise document data (donut chart)
       analyticsStore.fetchOrganizationDocuments(organizationId.value).finally(() => {
         loadingStates.value.donutChart = false
       }),
 
-      // Stacked bar chart data
       analyticsStore
         .fetchUserAppWiseTokenDetail(organizationId.value, startDate, endDate, userTimeZone)
         .finally(() => {
           loadingStates.value.stackedBar = false
         }),
 
-      // Pie chart data
       analyticsStore
         .fetchAppWiseTokenDetail(organizationId.value, startDate, endDate, userTimeZone)
         .finally(() => {
           loadingStates.value.pieChart = false
         }),
 
-      // Organization detail (contains top documents and frequent questions)
       analyticsStore
         .fetchOrganizationDetail(organizationId.value, startDate, endDate, userTimeZone)
         .finally(() => {
@@ -920,11 +1131,9 @@ const exportReport = () => {
     // Top 10 Frequently Asked Questions
     rows.push([], ['--- Top 10 Frequently Asked Questions ---'], ['Question', 'Count'])
     frequentQuestions.value.slice(0, 10).forEach((faq: any) => {
-      // Use proper CSV formatting - wrap question in quotes to handle commas
       rows.push([`"${faq.question.replace(/"/g, '""')}"`, String(faq.count || 0)])
     })
 
-    // Create and download CSV
     const csvContent = rows.map((r) => r.join(',')).join('\n')
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
@@ -942,26 +1151,39 @@ const exportReport = () => {
   }
 }
 
+// Fetch user profile to get plan details
+const fetchUserProfile = async () => {
+  try {
+    await profileStore.fetchUserProfile()
+  } catch (error) {
+    console.error('Error fetching user profile:', error)
+  }
+}
+
+const navigateToPlans = () => {
+  // Change this route if your plans page URL is different
+  navigateTo('/admin/plans')
+}
+
 // Watch for time range changes
-watch(selectedTimeRange, fetchData)
+watch(selectedTimeRange, () => {
+  if (!isMounted.value) return
+  fetchData()
+})
 
 // Lifecycle
-onMounted(fetchData)
+onMounted(async () => {
+  isMounted.value = true
+  await nextTick()
+
+  await fetchUserProfile()
+
+  await fetchData()
+})
 </script>
 
 <style scoped>
 .input-field {
   @apply bg-dark-700 border border-dark-600 text-white rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none;
-
-  /* Add spinner animation */
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-
-  .animate-spin {
-    animation: spin 1s linear infinite;
-  }
 }
 </style>

@@ -55,7 +55,7 @@ export default defineEventHandler(async (event) => {
     const { startDate, endDate, timezone } = getQuery(event);
 
     const orgQuery = `
-    SELECT 
+    SELECT
         o.org_id,
         o.org_name,
         COUNT(DISTINCT d.id) AS docs_uploaded,
@@ -65,6 +65,7 @@ export default defineEventHandler(async (event) => {
             SELECT SUM(t.total_tokens)
             FROM token_cost_calculation t
             WHERE t.org_id = o.org_id
+            AND (o.plan_start_date IS NULL OR t.created_at >= o.plan_start_date)
         ), 0) AS total_tokens,
         p.id AS plan_id,
         p.title AS plan_title,
@@ -144,6 +145,14 @@ export default defineEventHandler(async (event) => {
         GROUP BY d.document_source, d.reference_count
     `;
 
+    const totalQueriesQuery = `
+        SELECT COUNT(DISTINCT id) AS total
+        FROM token_cost_calculation
+        WHERE org_id = $1
+        AND COALESCE(question_text, '') NOT ILIKE 'document summarization:%'
+        AND ($2::timestamp IS NULL OR created_at >= $2::timestamp);
+    `;
+
     try {
         const dbStart = Date.now();
         const [{ rows: orgRows }, { rows: questionRows }, { rows: topDocumentsRows }] =
@@ -152,14 +161,22 @@ export default defineEventHandler(async (event) => {
                 query(allQuestionsQuery, params),
                 query(topDocumentsQuery, params),
             ]);
-        const dbElapsed = Date.now() - dbStart;
-        // if (process.dev) console.log(`DB queries completed in ${dbElapsed}ms`);
 
         const organizationDetails = orgRows[0];
+        const planStartDate = organizationDetails?.plan_start_date || null;
+
+        const { rows: totalQueriesRows } = await query(totalQueriesQuery, [org_id, planStartDate]);
+        const dbElapsed = Date.now() - dbStart;
+        // if (process.dev) console.log(`DB queries completed in ${dbElapsed}ms`);
 
         const rawQuestions = questionRows.map((q: { question_text: string }) =>
             (q.question_text || '').toString().trim()
         );
+
+        const totalQueries =
+            totalQueriesRows && totalQueriesRows[0]
+                ? Number(totalQueriesRows[0].total || 0)
+                : 0;
 
         // Prepare questions: keep original question text (so representative remains as stored in DB),
         // but filter out entries that cleanText would consider empty (emoji-only etc) and truncate long texts.
@@ -379,6 +396,7 @@ export default defineEventHandler(async (event) => {
             org_name: organizationDetails.org_name,
             docs_uploaded: organizationDetails.docs_uploaded,
             total_users: organizationDetails.total_users,
+            total_queries: totalQueries,
             total_tokens: organizationDetails.total_tokens,
             plan_start_date: organizationDetails.plan_start_date,
             plan: organizationDetails.plan_id

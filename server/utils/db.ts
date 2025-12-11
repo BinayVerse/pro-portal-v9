@@ -75,7 +75,7 @@ async function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function query(text: string, params: any, opts?: { retries?: number; backoffMs?: number }) {
+export async function query(text: string, params: any[] = [], opts?: { retries?: number; backoffMs?: number }) {
   // Use pool.query for simpler lifecycle; keep retries/backoff for transient errors
   const retries = Math.max(0, opts?.retries ?? 3);
   const backoffMs = Math.max(0, opts?.backoffMs ?? 250);
@@ -95,6 +95,10 @@ export async function query(text: string, params: any, opts?: { retries?: number
         continue;
       }
 
+      // Log the original DB error for debugging
+      // eslint-disable-next-line no-console
+      console.error('[db] Query error:', { message: error?.message, code: error?.code, stack: error?.stack })
+
       if (error?.code === "ECONNREFUSED") {
         throw new Error("Database connection refused - check if database is running");
       } else if (error?.code === "ENOTFOUND") {
@@ -104,7 +108,8 @@ export async function query(text: string, params: any, opts?: { retries?: number
       } else if (error?.code === "3D000") {
         throw new Error("Database does not exist - check database name");
       } else {
-        throw new Error("Database query failed");
+        // Propagate original message when available to aid debugging
+        throw new Error(error?.message || "Database query failed");
       }
     }
   }

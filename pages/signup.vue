@@ -1,9 +1,9 @@
 <template>
   <div class="min-h-screen bg-black flex items-center justify-center px-4 sm:px-6 lg:px-8 py-16">
-    <div class="max-w-md w-full space-y-8">
+    <div class="max-w-2xl w-full space-y-8">
       <!-- Logo and header -->
       <div class="text-center">
-        <NuxtLink to="/" class="inline-flex items-center space-x-3 mb-6">
+        <NuxtLink to="/" class="inline-flex items-center space-x-3 mb-6 justify-center">
           <img
             src="https://cdn.builder.io/api/v1/image/assets%2Fb2a7382a9c9146babd538ccc60e9d0b5%2Fbddd43caf4614f99a3fbff498927abcc?format=webp&width=800"
             alt="Provento Logo"
@@ -27,80 +27,151 @@
       </div>
 
       <!-- Signup form using UForm -->
-      <UForm ref="formRef" :schema="schema" :state="state" class="space-y-6" @submit="onSubmit">
-        <!-- Name -->
-        <UFormGroup name="name" label="Full Name" required>
-          <UInput
-            v-model="state.name"
-            eager-validation
-            inputClass="custom-input"
-            placeholder="John Doe"
-          />
-        </UFormGroup>
+      <UForm ref="formRef" :schema="schema" :state="state" class="space-y-8" @submit="onSubmit">
+        <!-- Personal Information Section -->
+        <div class="space-y-6">
+          <h3 class="text-lg font-semibold text-white">Personal Information</h3>
 
-        <!-- Company -->
-        <UFormGroup name="company" label="Company" required>
-          <UInput
-            v-model="state.company"
-            eager-validation
-            inputClass="custom-input"
-            placeholder="Your company name"
-          />
-        </UFormGroup>
-
-        <!-- Email -->
-        <UFormGroup name="email" label="Email address" required>
-          <UInput
-            v-model="state.email"
-            type="email"
-            eager-validation
-            inputClass="custom-input"
-            placeholder="john@company.com"
-          />
-        </UFormGroup>
-
-        <!-- Phone Number -->
-        <UFormGroup
-          name="phone"
-          label="Phone Number"
-          help="We'll use this for account verification"
-          required
-        >
-          <LibVueTelInput
-            ref="phoneRef"
-            v-model="state.phone"
-            placeholder="Your phone number"
-            defaultCountry="us"
-          />
-        </UFormGroup>
-
-        <!-- Password -->
-        <UFormGroup name="password" label="Password" required>
-          <div class="relative">
-            <UInput
-              v-model="state.password"
-              :type="showPassword ? 'text' : 'password'"
-              eager-validation
-              inputClass="custom-input pr-12"
-              placeholder="Create a strong password"
-            />
-            <button
-              type="button"
-              class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-300 transition-colors"
-              @click="togglePasswordVisibility"
-            >
-              <UIcon
-                :name="showPassword ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
-                class="h-5 w-5"
+          <!-- Name and Company Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Full Name -->
+            <UFormGroup name="name" label="Full Name" required>
+              <UInput
+                v-model="state.name"
+                eager-validation
+                inputClass="custom-input"
+                placeholder="John Doe"
               />
-            </button>
+            </UFormGroup>
+
+            <!-- Company -->
+            <UFormGroup name="company" label="Company" required>
+              <UInput
+                v-model="state.company"
+                eager-validation
+                inputClass="custom-input"
+                placeholder="Your company name"
+              />
+            </UFormGroup>
+          </div>
+
+          <!-- Email -->
+          <UFormGroup name="email" label="Email address" required>
+            <UInput
+              v-model="state.email"
+              type="email"
+              eager-validation
+              inputClass="custom-input"
+              placeholder="john@company.com"
+            />
+          </UFormGroup>
+
+          <!-- Phone Number -->
+          <UFormGroup
+            name="phone"
+            label="Phone Number"
+            required
+          >
+            <LibVueTelInput
+              ref="phoneRef"
+              v-model="state.phone"
+              placeholder="Your phone number"
+              defaultCountry="us"
+            />
+          </UFormGroup>
+        </div>
+
+        <!-- Organization Details Section -->
+        <div class="space-y-6 border-t border-dark-700 pt-8">
+          <h3 class="text-lg font-semibold text-white">Organization Details</h3>
+
+          <!-- Country and EIN Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Country -->
+            <UFormGroup name="country" label="Country" required>
+              <USelect
+                v-model="state.country"
+                :options="countryOptions"
+                eager-validation
+                selectClass="custom-select"
+                placeholder="Select country"
+              />
+            </UFormGroup>
+
+            <!-- EIN -->
+            <UFormGroup name="ein" label="EIN" required>
+              <UInput
+                v-model="state.ein"
+                eager-validation
+                inputClass="custom-input"
+                placeholder="XX-XXXXXXX"
+              />
+            </UFormGroup>
+          </div>
+        </div>
+
+        <!-- Security Section -->
+        <div class="space-y-6 border-t border-dark-700 pt-8">
+          <h3 class="text-lg font-semibold text-white">Security</h3>
+
+          <!-- Password and Confirm Password Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Password -->
+            <div>
+              <UFormGroup name="password" label="Password" required>
+                <div class="relative">
+                  <UInput
+                    v-model="state.password"
+                    :type="showPassword ? 'text' : 'password'"
+                    eager-validation
+                    inputClass="custom-input pr-12"
+                    placeholder="Create a password"
+                  />
+                  <button
+                    type="button"
+                    class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-300 transition-colors"
+                    @click="togglePasswordVisibility"
+                  >
+                    <UIcon
+                      :name="showPassword ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
+                      class="h-5 w-5"
+                    />
+                  </button>
+                </div>
+              </UFormGroup>
+            </div>
+
+            <!-- Confirm Password -->
+            <div>
+              <UFormGroup name="confirmPassword" label="Confirm Password" required>
+                <div class="relative">
+                  <UInput
+                    v-model="state.confirmPassword"
+                    :type="showPassword ? 'text' : 'password'"
+                    eager-validation
+                    inputClass="custom-input pr-12"
+                    placeholder="Re-enter your password"
+                  />
+                  <button
+                    type="button"
+                    class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-300 transition-colors"
+                    @click="togglePasswordVisibility"
+                  >
+                    <UIcon
+                      :name="showPassword ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
+                      class="h-5 w-5"
+                    />
+                  </button>
+                </div>
+              </UFormGroup>
+            </div>
           </div>
 
           <!-- Password Validation Indicators -->
-          <div class="mt-3 space-y-2">
-            <div class="text-xs font-medium text-gray-300 mb-2">Password Requirements:</div>
+          <div class="mt-3 space-y-2 p-4 bg-dark-800 rounded-lg">
+            <div class="text-xs font-medium text-gray-300 mb-3">Password Requirements:</div>
 
-            <div class="space-y-1">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
               <!-- Length requirement -->
               <div class="flex items-center space-x-2">
                 <UIcon
@@ -110,7 +181,7 @@
                       : 'i-heroicons-x-circle'
                   "
                   :class="passwordValidation.hasMinLength ? 'text-green-400' : 'text-red-400'"
-                  class="w-4 h-4"
+                  class="w-4 h-4 flex-shrink-0"
                 />
                 <span
                   :class="passwordValidation.hasMinLength ? 'text-green-400' : 'text-gray-400'"
@@ -129,7 +200,7 @@
                       : 'i-heroicons-x-circle'
                   "
                   :class="passwordValidation.hasUppercase ? 'text-green-400' : 'text-red-400'"
-                  class="w-4 h-4"
+                  class="w-4 h-4 flex-shrink-0"
                 />
                 <span
                   :class="passwordValidation.hasUppercase ? 'text-green-400' : 'text-gray-400'"
@@ -148,7 +219,7 @@
                       : 'i-heroicons-x-circle'
                   "
                   :class="passwordValidation.hasLowercase ? 'text-green-400' : 'text-red-400'"
-                  class="w-4 h-4"
+                  class="w-4 h-4 flex-shrink-0"
                 />
                 <span
                   :class="passwordValidation.hasLowercase ? 'text-green-400' : 'text-gray-400'"
@@ -167,7 +238,7 @@
                       : 'i-heroicons-x-circle'
                   "
                   :class="passwordValidation.hasNumber ? 'text-green-400' : 'text-red-400'"
-                  class="w-4 h-4"
+                  class="w-4 h-4 flex-shrink-0"
                 />
                 <span
                   :class="passwordValidation.hasNumber ? 'text-green-400' : 'text-gray-400'"
@@ -186,7 +257,7 @@
                       : 'i-heroicons-x-circle'
                   "
                   :class="passwordValidation.hasSpecialChar ? 'text-green-400' : 'text-red-400'"
-                  class="w-4 h-4"
+                  class="w-4 h-4 flex-shrink-0"
                 />
                 <span
                   :class="passwordValidation.hasSpecialChar ? 'text-green-400' : 'text-gray-400'"
@@ -197,8 +268,20 @@
               </div>
             </div>
 
+            <!-- Passwords match indicator -->
+            <div class="flex items-center space-x-2 mt-3 pt-3 border-t border-dark-700">
+              <UIcon
+                :name="passwordsMatch ? 'i-heroicons-check-circle' : 'i-heroicons-x-circle'"
+                :class="passwordsMatch ? 'text-green-400' : 'text-red-400'"
+                class="w-4 h-4 flex-shrink-0"
+              />
+              <span :class="passwordsMatch ? 'text-green-400' : 'text-gray-400'" class="text-xs">
+                Passwords match
+              </span>
+            </div>
+
             <!-- Overall strength indicator -->
-            <div class="mt-3 pt-2 border-t border-gray-600">
+            <div class="mt-3 pt-3 border-t border-dark-700">
               <div class="flex items-center space-x-2">
                 <span class="text-xs font-medium text-gray-300">Strength:</span>
                 <div class="flex space-x-1">
@@ -217,51 +300,17 @@
               </div>
             </div>
           </div>
-        </UFormGroup>
-
-        <!-- Confirm Password -->
-        <UFormGroup name="confirmPassword" label="Confirm Password" required>
-          <div class="relative">
-            <UInput
-              v-model="state.confirmPassword"
-              :type="showPassword ? 'text' : 'password'"
-              eager-validation
-              inputClass="custom-input pr-12"
-              placeholder="Re-enter your password"
-            />
-            <button
-              type="button"
-              class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-300 transition-colors"
-              @click="togglePasswordVisibility"
-            >
-              <UIcon
-                :name="showPassword ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
-                class="h-5 w-5"
-              />
-            </button>
-          </div>
-          <!-- Hint: Show special character requirement below confirm password for clarity -->
-          <div class="mt-2 text-xs flex items-center">
-            <UIcon
-              :name="passwordsMatch ? 'i-heroicons-check-circle' : 'i-heroicons-x-circle'"
-              :class="passwordsMatch ? 'text-green-400' : 'text-red-400'"
-              class="w-4 h-4"
-            />
-            <span :class="passwordsMatch ? 'text-green-400 ml-2' : 'text-gray-400 ml-2'"
-              >Passwords match</span
-            >
-          </div>
-        </UFormGroup>
+        </div>
 
         <!-- Terms Agreement -->
-        <div class="flex items-center">
+        <div class="flex items-start space-x-3 border-t border-dark-700 pt-8">
           <input
             id="terms"
             v-model="agreeToTerms"
             type="checkbox"
-            class="h-4 w-4 text-primary-500 bg-dark-800 border-dark-600 rounded focus:ring-primary-500 focus:ring-2"
+            class="h-4 w-4 mt-1 text-primary-500 bg-dark-800 border-dark-600 rounded focus:ring-primary-500 focus:ring-2"
           />
-          <label for="terms" class="ml-2 text-sm text-gray-300">
+          <label for="terms" class="text-sm text-gray-300">
             I agree to the
             <NuxtLink to="/terms-of-service" class="text-primary-400 hover:text-primary-300"
               >Terms of Service</NuxtLink
@@ -324,6 +373,8 @@ useHead({ title: 'Sign Up - provento.ai' })
 import { useAuthStore } from '~/stores/auth/index'
 import { z } from 'zod'
 import type { FormSubmitEvent } from '#ui/types'
+import ConfirmPopup from '~/components/ui/ConfirmPopup.vue'
+import { useRoute } from 'vue-router'
 
 definePageMeta({
   layout: 'minimal',
@@ -332,8 +383,33 @@ definePageMeta({
 
 const authStore = useAuthStore()
 const { showNotification } = useNotification()
-import ConfirmPopup from '~/components/ui/ConfirmPopup.vue'
 const showWelcomeModal = ref(false)
+
+// Capture marketplace token from query string to send as registrationToken
+const route = useRoute()
+const registrationToken = ref<string | null>(null)
+
+// initialize from query on mount and watch for changes
+onMounted(() => {
+  try {
+    const token = (route.query['x-amzn-marketplace-token'] ||
+      route.query['x_amzn_marketplace_token']) as string | undefined
+    if (token) registrationToken.value = String(token)
+  } catch (e) {
+    registrationToken.value = null
+  }
+})
+
+// react to query changes (in case token appears after navigation)
+watch(
+  () => route.query,
+  (q) => {
+    const token = (q['x-amzn-marketplace-token'] || q['x_amzn_marketplace_token']) as
+      | string
+      | undefined
+    registrationToken.value = token ? String(token) : null
+  },
+)
 
 // Form reference
 const formRef = ref()
@@ -407,6 +483,8 @@ const schema = z
     name: z.string().min(1, 'Full name is required').max(255, 'Name too long'),
     company: z.string().min(1, 'Company name is required').max(255, 'Company name too long'),
     email: z.string().email('Invalid email address').max(255, 'Email too long'),
+    country: z.string().min(1, 'Country is required'),
+    ein: z.string().min(1, 'EIN is required').max(20, 'EIN too long'),
     password: z
       .string()
       .min(8, 'Password must be at least 8 characters')
@@ -428,10 +506,36 @@ const state = reactive({
   name: '',
   company: '',
   email: '',
+  country: '',
+  ein: '',
   password: '',
   confirmPassword: '',
   phone: null as string | null,
 })
+
+// Country options list
+const countryOptions = [
+  'United States',
+  'Canada',
+  'United Kingdom',
+  'Australia',
+  'Germany',
+  'France',
+  'India',
+  'Japan',
+  'China',
+  'Brazil',
+  'Mexico',
+  'South Korea',
+  'Netherlands',
+  'Spain',
+  'Italy',
+  'Sweden',
+  'Switzerland',
+  'Singapore',
+  'Hong Kong',
+  'United Arab Emirates',
+]
 
 const togglePasswordVisibility = () => {
   showPassword.value = !showPassword.value
@@ -464,13 +568,18 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
     const phoneNumberWithCountryCode = phoneData?.number || state.phone || ''
 
     // Prepare signup data
-    const signupData = {
+    const signupData: Record<string, any> = {
       name: event.data.name.trim(),
       email: event.data.email.trim().toLowerCase(),
       password: event.data.password,
       wpNumber: phoneNumberWithCountryCode,
       companyName: event.data.company.trim(),
+      country: event.data.country,
+      ein: event.data.ein.trim(),
     }
+
+    // Attach registrationToken if present (from AWS marketplace flow)
+    if (registrationToken.value) signupData.registrationToken = registrationToken.value
 
     // Call auth store signup method
     await authStore.signup(signupData)
@@ -486,6 +595,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       name: '',
       company: '',
       email: '',
+      country: '',
+      ein: '',
       password: '',
       confirmPassword: '',
       phone: null,
@@ -534,6 +645,26 @@ function handleWelcomeConfirm() {
 
 :deep(.custom-input::placeholder) {
   color: #64748b !important;
+}
+
+/* Custom select styles to match input fields */
+:deep(.custom-select) {
+  background-color: #1e293b !important;
+  color: #e2e8f0 !important;
+  font-size: 0.875rem !important;
+  padding: 0.875rem 1rem !important;
+  transition: all 0.2s ease-in-out !important;
+  width: 100% !important;
+  border-radius: 0.5rem !important;
+}
+
+:deep(.custom-select:hover) {
+  background-color: #1e293b !important;
+}
+
+:deep(.custom-select:focus) {
+  background-color: #1e293b !important;
+  outline: none !important;
 }
 
 /* Vue-tel-input custom styling to match design */

@@ -105,7 +105,7 @@ export const useAnalyticsStore = defineStore('analyticsStore', {
 
         // Parse the counts to numbers
         this.activeUsersCount = Number(response.meta.active_users_count) || 0;
-        this.totalQueriesCount = Number(response.meta.total_queries_count) || 0;
+        // this.totalQueriesCount = Number(response.meta.total_queries_count) || 0;
 
       } catch (error) {
         if (await handleAuthErrorShared(error)) return;
@@ -129,6 +129,11 @@ export const useAnalyticsStore = defineStore('analyticsStore', {
         );
 
         this.organizationDetails = response.data || null;
+
+        // Extract total_queries from the organization details
+        if (response.data?.total_queries !== undefined) {
+          this.totalQueriesCount = Number(response.data.total_queries) || 0;
+        }
       } catch (error) {
         if (await handleAuthErrorShared(error)) return;
         this.handleError(error, 'Failed to fetch organization details');

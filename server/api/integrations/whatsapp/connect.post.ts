@@ -83,16 +83,15 @@ export default defineEventHandler(async (event) => {
         const qrCode = await generateQRCode(orgName, business_whatsapp_number)
 
         await query(
-            `INSERT INTO public.organizations (org_id, org_name, org_whatsapp_number, qr_code, added_by, created_at)
-                VALUES ($1, $2, $3, $4, $5, NOW())
+            `INSERT INTO public.organizations (org_id, org_name, org_whatsapp_number, qr_code, created_at)
+                VALUES ($1, $2, $3, $4, NOW())
                 ON CONFLICT (org_id)
                 DO UPDATE SET
                     org_name = EXCLUDED.org_name,
                     org_whatsapp_number = EXCLUDED.org_whatsapp_number,
                     qr_code = EXCLUDED.qr_code,
-                    updated_by = EXCLUDED.added_by,
                     updated_at = NOW();`,
-            [orgId, orgName, business_whatsapp_number, qrCode, userId]
+            [orgId, orgName, business_whatsapp_number, qrCode]
         )
 
         await query(

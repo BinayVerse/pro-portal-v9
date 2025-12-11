@@ -188,27 +188,18 @@
                 }}
               </span>
 
-              <!-- Connected State Button -->
-              <button
-                v-if="integration.connected"
-                @click="navigateToIntegration(integration.path)"
-                class="flex items-center px-3 py-1 text-xs font-medium bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
-              >
-                <UIcon name="heroicons:cog-6-tooth" class="w-3 h-3 mr-1" />
-                Manage
-              </button>
+              <!-- Always show Manage button (navigates to integration page). For iMessage show Soon. -->
+              <template v-if="integration.name !== 'iMessage'">
+                <button
+                  @click="navigateToIntegration(integration.path)"
+                  class="flex items-center px-3 py-1 text-xs font-medium rounded transition-colors"
+                  :class="integration.connected ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'"
+                >
+                  <UIcon name="heroicons:cog-6-tooth" class="w-3 h-3 mr-1" />
+                  Manage
+                </button>
+              </template>
 
-              <!-- Disconnected State Button -->
-              <button
-                v-else-if="integration.name !== 'iMessage'"
-                @click="navigateToIntegration(integration.path)"
-                class="flex items-center px-3 py-1 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-              >
-                <UIcon name="heroicons:plus" class="w-3 h-3 mr-1" />
-                Connect
-              </button>
-
-              <!-- Coming Soon State Button -->
               <button
                 v-else
                 disabled
@@ -286,8 +277,10 @@ definePageMeta({
 
 // Store
 const integrationsStore = useIntegrationsStore()
+const authStore = useAuthStore()
 import { useRoute } from 'vue-router'
 const route = useRoute()
+const isSuperAdmin = computed(() => authStore.isSuperAdmin)
 
 // Fetch data on mount and start 15s polling (stop on unmount)
 let integrationsIntervalId: number | null = null
@@ -325,9 +318,41 @@ onUnmounted(() => {
 })
 
 // Methods
-const navigateToIntegration = (path: string) => {
+const navigateToIntegration = (path: string, preserveOrg: boolean = true) => {
+  if (!path) return
   if (path.includes('i-message')) return // Disabled for iMessage
-  navigateTo(path)
+
+  // ensure leading slash
+  const target = path.startsWith('/') ? path : `/${path}`
+
+  // preserve org query param for superadmin flows
+  const orgQuery = route.query?.org || route.query?.org_id || null
+  if (preserveOrg && orgQuery) {
+    navigateTo({ path: target, query: { org: String(orgQuery) } })
+  } else {
+    navigateTo(target)
+  }
+}
+
+const onIntegrationClick = (integration: any) => {
+  // If already connected, manage should remain enabled
+  if (integration.connected) {
+    navigateToIntegration(integration.path)
+    return
+  }
+
+  // For disconnected integrations, disable action for superadmin except WhatsApp
+  if (isSuperAdmin.value && integration.name !== 'WhatsApp') {
+    // show a tooltip or notification (non-blocking)
+    if (process.client) {
+      const { showInfo } = useNotification()
+      showInfo('Super admin cannot connect integrations. Switch to an organization admin to connect.')
+    }
+    return
+  }
+
+  // otherwise navigate to integration page (connect flow)
+  navigateToIntegration(integration.path)
 }
 
 const getActivityColor = (type: string) => {
@@ -360,7 +385,8 @@ const getIntegrationDetailText = (integration: any) => {
 }
 
 const refreshData = async () => {
-  await integrationsStore.refreshOverview()
+  const orgId = route.query?.org || route.query?.org_id ? String(route.query?.org || route.query?.org_id) : null
+  await integrationsStore.refreshOverview(orgId, true, true)
 }
 
 // Auto-refresh on focus

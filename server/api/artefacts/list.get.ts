@@ -1,4 +1,4 @@
-import { defineEventHandler, readBody, setResponseStatus } from 'h3'
+import { defineEventHandler, setResponseStatus, getQuery } from 'h3'
 import { CustomError } from '../../utils/custom.error'
 import { query } from '../../utils/db'
 import jwt from 'jsonwebtoken'
@@ -20,8 +20,9 @@ export default defineEventHandler(async (event) => {
     throw new CustomError('Unauthorized: Invalid token', 401)
   }
 
-  const { timezone: clientTimezone } = await readBody(event)
-  const userTimezone = clientTimezone || 'UTC'
+  const queryParams = getQuery(event) as Record<string, any>
+  const clientTimezone = queryParams.timezone || 'UTC'
+  const userTimezone = clientTimezone
 
   try {
     const userResult = await query(
@@ -40,10 +41,8 @@ export default defineEventHandler(async (event) => {
     const tokenUserOrg = userResult.rows[0].org_id
     const tokenUserRole = userResult.rows[0].role_id
 
-    // Allow superadmin to request a different org via body.org_id or query param 'org'/'org_id'
-    const q = getQuery(event) as Record<string, any>
-    const body = await readBody(event)
-    const requestedOrg = q?.org || q?.org_id || body?.org_id || null
+    // Allow superadmin to request a different org via query param 'org'/'org_id'
+    const requestedOrg = queryParams?.org || queryParams?.org_id || null
     const org_id = tokenUserRole === 0 && requestedOrg ? String(requestedOrg) : tokenUserOrg
 
     // Fetch documents with category information and user who added them
@@ -135,6 +134,7 @@ export default defineEventHandler(async (event) => {
       totalArtefacts,
       processedArtefacts,
       totalCategories,
+      totalSizeBytes,
       totalSize: formatFileSize(totalSizeBytes)
     }
 

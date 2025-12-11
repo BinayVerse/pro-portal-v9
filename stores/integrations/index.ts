@@ -162,6 +162,14 @@ export const useIntegrationsStore = defineStore('integrations', {
       return handleError(error, fallbackMessage, silent)
     },
 
+    // Normalize route/query/org values to a single string or null
+    normalizeOrgParam(value?: string | string[] | null): string | null {
+      if (value == null) return null
+      if (Array.isArray(value)) value = value[0] as string
+      const s = String(value).trim()
+      return s === '' ? null : s
+    },
+
     // Main fetch method
     async fetchOverview(orgId?: string | null, forceRefresh: boolean = false, showLoading: boolean = true) {
       if (!forceRefresh && !this.needsRefresh && this.overview) {
@@ -302,9 +310,9 @@ export const useIntegrationsStore = defineStore('integrations', {
 
 
     // Refresh data
-    async refreshOverview() {
-      // Manual refresh should show loading
-      return await this.fetchOverview(true, true)
+    async refreshOverview(orgId?: string | null) {
+      // Manual refresh should show loading; pass orgId when provided
+      return await this.fetchOverview(orgId ?? undefined, true, true)
     },
 
     // Clear data
@@ -484,16 +492,26 @@ export const useIntegrationsStore = defineStore('integrations', {
       }
     },
 
-    async disconnectSlackApp() {
+    async disconnectSlackApp(orgId?: string | null) {
       try {
         this.loading = true;
 
-        await $fetch('/api/integrations/slack/disconnect', {
+        // Determine org param if not provided
+        if (!orgId && process.client) {
+          try {
+            const route = useRoute()
+            const q = route?.query?.org || route?.query?.org_id
+            if (q && String(q).trim()) orgId = String(q)
+          } catch (e) {}
+        }
+
+        const url = orgId ? `/api/integrations/slack/disconnect?org=${encodeURIComponent(String(orgId))}` : '/api/integrations/slack/disconnect'
+        await $fetch(url, {
           method: 'POST',
           headers: this.getAuthHeaders(),
         });
 
-        await this.fetchSlackAppDetails();
+        await this.fetchSlackAppDetails(orgId ?? null);
 
         // Show success notification
         if (process.client) {
@@ -556,16 +574,26 @@ export const useIntegrationsStore = defineStore('integrations', {
       }
     },
 
-    async disconnectTeamsApp() {
+    async disconnectTeamsApp(orgId?: string | null) {
       try {
         this.loading = true;
 
-        await $fetch('/api/integrations/teams/disconnect', {
+        // Determine org param if not provided
+        if (!orgId && process.client) {
+          try {
+            const route = useRoute()
+            const q = route?.query?.org || route?.query?.org_id
+            if (q && String(q).trim()) orgId = String(q)
+          } catch (e) {}
+        }
+
+        const url = orgId ? `/api/integrations/teams/disconnect?org=${encodeURIComponent(String(orgId))}` : '/api/integrations/teams/disconnect'
+        await $fetch(url, {
           method: 'POST',
           headers: this.getAuthHeaders(),
         });
 
-        await this.fetchTeamsAppDetails();
+        await this.fetchTeamsAppDetails(orgId ?? null);
 
         // Show success notification
         if (process.client) {
@@ -630,19 +658,17 @@ export const useIntegrationsStore = defineStore('integrations', {
     },
 
     // WhatsApp integration methods
-    async createWhatsAppAccount(input: BusinessWhatsAppDetails) {
+    async createWhatsAppAccount(input: BusinessWhatsAppDetails, orgId?: string | null) {
       try {
         this.loading = true;
         this.error = null;
 
-        const data = await $fetch<WhatsAppNumber>(
-          '/api/integrations/whatsapp/connect',
-          {
-            method: 'POST',
-            headers: this.getAuthHeaders(),
-            body: input,
-          }
-        );
+        const url = orgId ? `/api/integrations/whatsapp/connect?org=${encodeURIComponent(String(orgId))}` : '/api/integrations/whatsapp/connect'
+        const data = await $fetch<WhatsAppNumber>(url, {
+          method: 'POST',
+          headers: this.getAuthHeaders(),
+          body: input,
+        });
 
         this.businessWhatsAppNumber = data?.data?.business_whatsapp_number ?? '';
 
@@ -651,12 +677,21 @@ export const useIntegrationsStore = defineStore('integrations', {
           showSuccess(data?.message || 'Business WhatsApp Account added successfully');
         }
 
+        // Resolve effective org for follow-up fetches
+        const routeOrg = process.client ? (useRoute()?.query?.org || useRoute()?.query?.org_id) : null
+        const effectiveOrg = this.normalizeOrgParam(orgId ?? routeOrg)
+
         // Refresh details after successful creation
-        await this.fetchWhatsAppDetails();
+        await this.fetchWhatsAppDetails(effectiveOrg)
+
+        // Fetch QR code for this org
+        try {
+          await this.fetchQrCode(effectiveOrg)
+        } catch (e) {}
 
         // Also refresh overview so other pages (e.g. Users) react to new integration status
         try {
-          await this.fetchOverview(true, false)
+          await this.fetchOverview(effectiveOrg, true, false)
         } catch (e) {
           // ignore overview refresh errors
         }
@@ -677,19 +712,17 @@ export const useIntegrationsStore = defineStore('integrations', {
       }
     },
 
-    async updateWhatsAppAccount(input: BusinessWhatsAppDetails) {
+    async updateWhatsAppAccount(input: BusinessWhatsAppDetails, orgId?: string | null) {
       try {
         this.loading = true;
         this.error = null;
 
-        const data = await $fetch<WhatsAppNumber>(
-          '/api/integrations/whatsapp/update',
-          {
-            method: 'POST',
-            headers: this.getAuthHeaders(),
-            body: input,
-          }
-        );
+        const url = orgId ? `/api/integrations/whatsapp/update?org=${encodeURIComponent(String(orgId))}` : '/api/integrations/whatsapp/update'
+        const data = await $fetch<WhatsAppNumber>(url, {
+          method: 'POST',
+          headers: this.getAuthHeaders(),
+          body: input,
+        });
 
         this.businessWhatsAppNumber = data?.data?.business_whatsapp_number ?? '';
 
@@ -698,12 +731,21 @@ export const useIntegrationsStore = defineStore('integrations', {
           showSuccess(data?.message || 'Business WhatsApp Account updated successfully');
         }
 
+        // Resolve effective org for follow-up fetches
+        const routeOrg = process.client ? (useRoute()?.query?.org || useRoute()?.query?.org_id) : null
+        const effectiveOrg = this.normalizeOrgParam(orgId ?? routeOrg)
+
         // Refresh details after successful update
-        await this.fetchWhatsAppDetails();
+        await this.fetchWhatsAppDetails(effectiveOrg)
+
+        // Fetch QR code for this org
+        try {
+          await this.fetchQrCode(effectiveOrg)
+        } catch (e) {}
 
         // Refresh overview so other pages reflect updated status
         try {
-          await this.fetchOverview(true, false)
+          await this.fetchOverview(effectiveOrg, true, false)
         } catch (e) {}
 
         return data;
@@ -800,18 +842,16 @@ export const useIntegrationsStore = defineStore('integrations', {
       }
     },
 
-    async disconnectWhatsApp() {
+    async disconnectWhatsApp(orgId?: string | null) {
       try {
         this.loading = true;
         this.error = null;
 
-        const data = await $fetch<ApiResponse<any>>(
-          '/api/integrations/whatsapp/disconnect',
-          {
-            method: 'POST',
-            headers: this.getAuthHeaders(),
-          }
-        );
+        const url = orgId ? `/api/integrations/whatsapp/disconnect?org=${encodeURIComponent(String(orgId))}` : '/api/integrations/whatsapp/disconnect'
+        const data = await $fetch<ApiResponse<any>>(url, {
+          method: 'POST',
+          headers: this.getAuthHeaders(),
+        });
 
         // Clear WhatsApp details
         this.whatsappDetails = null;
@@ -829,9 +869,20 @@ export const useIntegrationsStore = defineStore('integrations', {
           this.stopWhatsAppPolling()
         } catch (e) {}
 
+        const routeOrg = process.client ? (useRoute()?.query?.org || useRoute()?.query?.org_id) : null
+        const effectiveOrg = this.normalizeOrgParam(orgId ?? routeOrg)
+
+        // Refresh WhatsApp details and QR for the org
+        try {
+          await this.fetchWhatsAppDetails(effectiveOrg)
+        } catch (e) {}
+        try {
+          await this.fetchQrCode(effectiveOrg)
+        } catch (e) {}
+
         // Refresh overview so other pages reflect disconnected status
         try {
-          await this.fetchOverview(true, false)
+          await this.fetchOverview(effectiveOrg, true, false)
         } catch (e) {}
 
         return data;
@@ -850,13 +901,23 @@ export const useIntegrationsStore = defineStore('integrations', {
       }
     },
 
-    async fetchQrCode() {
+    async fetchQrCode(orgId?: string | null) {
       try {
         this.loading = true;
         this.error = null;
 
+        // If orgId not provided, attempt to read from route for superadmin selection
+        if (!orgId && process.client) {
+          try {
+            const route = useRoute()
+            const q = route?.query?.org || route?.query?.org_id
+            if (q && String(q).trim()) orgId = String(q)
+          } catch (e) {}
+        }
+
+        const url = orgId ? `/api/integrations/whatsapp/qr-code?org=${encodeURIComponent(String(orgId))}` : '/api/integrations/whatsapp/qr-code'
         const data = await $fetch<{ statusCode: number; status: string; data: string | null; message: string }>(
-          '/api/integrations/whatsapp/qr-code',
+          url,
           {
             headers: this.getAuthHeaders(),
           }
@@ -881,10 +942,11 @@ export const useIntegrationsStore = defineStore('integrations', {
       }
     },
 
-    async downloadQrCode() {
+    async downloadQrCode(orgId?: string | null) {
       // Handles downloading the QR code (signed URL or proxy) and triggers browser download
       try {
         this.qrDownloading = true;
+
         if (!this.qrCode) {
           throw new Error('No QR code available to download.');
         }
@@ -919,15 +981,25 @@ export const useIntegrationsStore = defineStore('integrations', {
           // Continue to proxy flow below
         }
 
+        // Determine org param if not provided
+        if (!orgId && process.client) {
+          try {
+            const route = useRoute()
+            const q = route?.query?.org || route?.query?.org_id
+            if (q && String(q).trim()) orgId = String(q)
+          } catch (e) {}
+        }
+
         // Proxy fallback
         try {
-          const proxyResp = await $fetch('/api/integrations/whatsapp/qr-code-download', {
+          const url = orgId ? `/api/integrations/whatsapp/qr-code-download?org=${encodeURIComponent(String(orgId))}` : '/api/integrations/whatsapp/qr-code-download'
+          const proxyResp = await $fetch<{ data?: { base64: string; contentType: string } }>(url, {
             headers: this.getAuthHeaders(),
           });
 
           if (!proxyResp || !proxyResp.data) throw new Error('Invalid proxy response');
 
-          const { base64, contentType } = proxyResp.data as { base64: string; contentType: string };
+          const { base64, contentType } = proxyResp.data;
           const byteCharacters = atob(base64);
           const byteArrays: Uint8Array[] = [];
 
@@ -940,19 +1012,19 @@ export const useIntegrationsStore = defineStore('integrations', {
             byteArrays.push(new Uint8Array(byteNumbers));
           }
 
-          const blob = new Blob(byteArrays, { type: contentType });
+          const blob = new Blob(byteArrays as unknown as BlobPart[], { type: contentType });
           const biz = this.whatsappDetails?.business_whatsapp_number || 'whatsapp';
           const safeBiz = biz.replace(/[^a-z0-9_-]/gi, '_');
           const filename = `${safeBiz}_wp_qr_code.png`;
 
-          const url = window.URL.createObjectURL(blob);
+          const urlObj = window.URL.createObjectURL(blob);
           const a = document.createElement('a');
-          a.href = url;
+          a.href = urlObj;
           a.download = filename;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
-          window.URL.revokeObjectURL(url);
+          window.URL.revokeObjectURL(urlObj);
 
           if (process.client) {
             const { showSuccess } = useNotification();

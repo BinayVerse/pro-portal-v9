@@ -7,6 +7,9 @@
       <p class="text-gray-400">Manage your artefact chatting platform from here.</p>
     </div>
 
+    <!-- PLAN UPGRADE ALERT -->
+    <PlanUpgradeAlert :data="usageAlertData" @upgrade="goToPlans" />
+
     <!-- Stats Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       <!-- Total Users -->
@@ -14,33 +17,29 @@
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Total Users</p>
-            <p class="text-3xl font-bold text-white mt-2">
-              {{ loading ? '...' : stats.totalUsers.toLocaleString() }}
+
+            <p :class="`text-lg font-bold mt-2 ${usersTextColor}`">
+              {{ loading ? '...' : `${stats.totalUsers} / ${usersLimit}` }}
             </p>
-            <!-- <p class="text-sm mt-2">
-              <span :class="stats.userGrowth >= 0 ? 'text-green-400' : 'text-red-400'">
-                {{ stats.userGrowth >= 0 ? '+' : '' }}{{ stats.userGrowth }}% from last month
-              </span>
-            </p> -->
           </div>
+
           <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
             <UIcon name="heroicons:users" class="w-6 h-6 text-blue-400" />
           </div>
         </div>
       </UCard>
 
-      <!-- Documents -->
+      <!-- Artefacts -->
       <UCard class="bg-dark-800 border-dark-700">
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Artefacts</p>
-            <p class="text-3xl font-bold text-white mt-2">
-              {{ loading ? '...' : stats.totalArtefacts.toLocaleString() }}
+
+            <p :class="`text-lg font-bold mt-2 ${artefactsTextColor}`">
+              {{ loading ? '...' : `${stats.totalArtefacts} / ${artefactsLimit}` }}
             </p>
-            <!-- <p class="text-sm mt-2">
-              <span class="text-green-400">+{{ stats.artefactsToday }} today</span>
-            </p> -->
           </div>
+
           <div class="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
             <UIcon name="heroicons:document-text" class="w-6 h-6 text-green-400" />
           </div>
@@ -52,15 +51,16 @@
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Conversations</p>
-            <p class="text-3xl font-bold text-white mt-2">
-              {{ loading ? '...' : stats.totalConversations.toLocaleString() }}
+
+            <p :class="`text-lg font-bold mt-2 ${conversationsTextColor}`">
+              {{
+                loading
+                  ? '...'
+                  : `${stats.totalConversations} / ${formatCompactNumber(conversationsLimit)}`
+              }}
             </p>
-            <!-- <p class="text-sm mt-2">
-              <span :class="stats.conversationGrowth >= 0 ? 'text-green-400' : 'text-red-400'">
-                {{ stats.conversationGrowth >= 0 ? '+' : '' }}{{ stats.conversationGrowth }}% from last month
-              </span>
-            </p> -->
           </div>
+
           <div class="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
             <UIcon name="heroicons:chat-bubble-left-right" class="w-6 h-6 text-purple-400" />
           </div>
@@ -72,15 +72,12 @@
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Tokens Used</p>
-            <p class="text-3xl font-bold text-white mt-2">
-              {{ loading ? '...' : formatCompactNumber(stats.tokensUsed) }}
+
+            <p class="text-lg font-bold mt-2">
+              {{ loading ? '...' : `${formatCompactNumber(stats.tokensUsed)}` }}
             </p>
-            <!-- <p class="text-sm mt-2">
-              <span :class="stats.tokenGrowth >= 0 ? 'text-green-400' : 'text-red-400'">
-                {{ stats.tokenGrowth >= 0 ? '+' : '' }}{{ stats.tokenGrowth }}% from last month
-              </span>
-            </p> -->
           </div>
+
           <div class="w-12 h-12 bg-orange-500/20 rounded-lg flex items-center justify-center">
             <UIcon name="heroicons:bolt" class="w-6 h-6 text-orange-400" />
           </div>
@@ -95,18 +92,16 @@
         <div class="flex items-center justify-between p-6 border-b border-dark-700">
           <h2 class="text-lg font-semibold text-white">Recent Users</h2>
           <div class="text-sm text-gray-400">Latest user registrations and activity</div>
-          <button
-            @click="navigateToUsers"
-            :disabled="!isWhatsAppConnected"
-            :title="
-              !isWhatsAppConnected
+          <!-- :disabled="disableAddUser" -->
+          <!-- :title="
+              disableAddUser
                 ? 'Please complete the Meta account integration to enable Add User and Bulk Upload features.'
                 : ''
-            "
+            " -->
+          <button
+            @click="navigateToUsers"
             :class="[
-              isWhatsAppConnected
-                ? 'text-primary-400 hover:text-primary-300'
-                : 'text-primary-400 opacity-50 cursor-not-allowed',
+              'text-primary-400 hover:text-primary-300',
               'text-sm font-medium flex items-center gap-1',
             ]"
           >
@@ -222,12 +217,12 @@
               </div>
             </div>
             <UButton
-              @click="navigateTo(integration.path)"
+              @click="navigateToIntegration(integration.path)"
               :color="integration.isConnected ? 'green' : 'blue'"
               size="xs"
               :icon="integration.isConnected ? 'heroicons:check' : 'heroicons:link'"
             >
-              {{ integration.isConnected ? 'Connected' : 'Connect' }}
+              {{ integration.isConnected ? 'Manage' : 'Manage' }}
             </UButton>
           </div>
         </div>
@@ -239,6 +234,7 @@
 <script setup lang="ts">
 useHead({ title: 'Dashboard - Admin Dashboard - provento.ai' })
 import { handleAuthError as handleAuthErrorShared } from '~/composables/useAuthError'
+import PlanUpgradeAlert from '@/components/ui/PlanUpgradeAlert.vue'
 
 definePageMeta({
   layout: 'admin',
@@ -248,6 +244,11 @@ definePageMeta({
 // Import stores - keep only necessary ones
 import { useAuthStore } from '~/stores'
 import { useDashboardStore } from '~/stores/dashboard'
+import { useProfileStore } from '~/stores/profile'
+
+const profileStore = useProfileStore()
+
+const planDetails = computed(() => profileStore.getUserProfile?.plan_details || {})
 
 const loading = ref(true)
 const authStore = useAuthStore()
@@ -281,6 +282,89 @@ const stats = ref({
   tokenGrowth: 0,
   processedArtefacts: 0,
 })
+
+// ---- PLAN USAGE METRICS ----
+
+// 1. Users usage
+const usersLimit = computed(() => (planDetails.value as any)?.users || 0)
+const usersUsage = computed(() => {
+  const current = stats.value.totalUsers
+  const limit = usersLimit.value
+  const percentage = limit > 0 ? (current / limit) * 100 : 0
+  return { name: 'Users', current, limit, percentage }
+})
+
+// 2. Artefacts usage
+const artefactsLimit = computed(() => (planDetails.value as any)?.artefacts || 0)
+const artefactsUsage = computed(() => {
+  const current = stats.value.totalArtefacts
+  const limit = artefactsLimit.value
+  const percentage = limit > 0 ? (current / limit) * 100 : 0
+  return { name: 'Artefacts', current, limit, percentage }
+})
+
+// 3. Conversations usage (Query Limit)
+const conversationsLimit = computed(() => (planDetails.value as any)?.limit_requests || 0)
+const conversationsUsage = computed(() => {
+  const current = stats.value.totalConversations
+  const limit = conversationsLimit.value
+  const percentage = limit > 0 ? (current / limit) * 100 : 0
+  return { name: 'Conversations', current, limit, percentage }
+})
+
+// 4. Tokens usage (Token Limit)
+const tokensLimit = computed(() => (planDetails.value as any)?.tokens || 0)
+const tokensUsage = computed(() => {
+  const current = stats.value.tokensUsed
+  const limit = tokensLimit.value
+  const percentage = limit > 0 ? (current / limit) * 100 : 0
+  return { name: 'Tokens', current, limit, percentage }
+})
+
+const usageMetrics = computed(() => [
+  usersUsage.value,
+  artefactsUsage.value,
+  conversationsUsage.value,
+  tokensUsage.value,
+])
+
+const usageAlertData = computed(() => {
+  const metrics = usageMetrics.value
+  return {
+    metrics,
+    exceededMetrics: metrics.filter((m) => m.percentage >= 100),
+    highMetrics: metrics.filter((m) => m.percentage >= 80 && m.percentage < 100),
+    hasExceeded: metrics.some((m) => m.percentage >= 100),
+    hasHigh: metrics.some((m) => m.percentage >= 80 && m.percentage < 100),
+  }
+})
+
+const goToPlans = () => {
+  navigateTo('/admin/plans')
+}
+
+const getUsageColor = (current: number, limit?: number) => {
+  if (!limit) return 'text-white'
+  const percent = (current / limit) * 100
+  if (percent >= 100) return 'text-red-400'
+  if (percent >= 80) return 'text-orange-400'
+  return 'text-white'
+}
+
+// ---- COLOR CLASSES FOR DASHBOARD CARDS ----
+
+// Users
+const usersTextColor = computed(() => getUsageColor(stats.value.totalUsers, usersLimit.value))
+
+// Artefacts
+const artefactsTextColor = computed(() =>
+  getUsageColor(stats.value.totalArtefacts, artefactsLimit.value),
+)
+
+// Conversations (queries)
+const conversationsTextColor = computed(() =>
+  getUsageColor(stats.value.totalConversations, conversationsLimit.value),
+)
 
 const recentUsers = ref([])
 const recentArtefacts = ref([])
@@ -427,7 +511,9 @@ import { useRoute } from 'vue-router'
 const route = useRoute()
 
 const getOrgQuery = () => {
-  return route.query?.org || route.query?.org_id ? String(route.query?.org || route.query?.org_id) : null
+  return route.query?.org || route.query?.org_id
+    ? String(route.query?.org || route.query?.org_id)
+    : null
 }
 
 const navigateToUsers = () => {
@@ -439,6 +525,16 @@ const navigateToArtefacts = () => {
   const orgId = getOrgQuery()
   navigateTo(orgId ? { path: '/admin/artefacts', query: { org: orgId } } : '/admin/artefacts')
 }
+
+// Navigate to integration path while preserving org query for superadmin
+const navigateToIntegration = (path: string) => {
+  const orgId = getOrgQuery()
+  navigateTo(orgId ? { path, query: { org: orgId } } : path)
+}
+
+// Allow Add User for admin or superadmin regardless of WhatsApp connection
+const isAdminOrSuperAdmin = computed(() => authStore.isAdmin || authStore.isSuperAdmin)
+const disableAddUser = computed(() => !(isWhatsAppConnected.value || isAdminOrSuperAdmin.value))
 
 onMounted(async () => {
   const orgId = getOrgQuery()

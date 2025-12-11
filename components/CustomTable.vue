@@ -106,12 +106,22 @@
     <!-- Pagination -->
     <div
       v-if="paginatedRows.length"
-      class="flex justify-end px-3 py-3.5 border-t border-gray-200 dark:border-gray-700"
+      class="flex items-center justify-between px-3 py-3.5 border-t border-gray-200 dark:border-gray-700"
     >
+      <div class="flex items-center space-x-3">
+        <div class="text-sm text-gray-400 hidden sm:block">Rows per page</div>
+        <div class="w-24">
+          <USelect
+            v-model="perPage"
+            :options="perPageOptions"
+            size="sm"
+          />
+        </div>
+      </div>
       <UPagination
         size="sm"
         v-model="currentPage"
-        :page-count="pageSize"
+        :page-count="computedPageCount"
         :total="filteredRows.length"
       />
     </div>
@@ -119,7 +129,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 
 const props = defineProps({
   columns: { type: Array, required: true },
@@ -158,9 +168,27 @@ const filteredRows = computed(() => {
   );
 });
 
+// Per-page control
+const perPageOptions = [
+  { label: '5', value: 5 },
+  { label: '10', value: 10 },
+  { label: '20', value: 20 },
+  { label: '50', value: 50 },
+  { label: 'All', value: 'all' },
+]
+const perPage = ref(props.pageSize)
+const computedPageCount = computed(() => (perPage.value === 'all' ? Math.max(filteredRows.value.length, 1) : Number(perPage.value)))
+
+watch(perPage, () => {
+  currentPage.value = 1
+})
+
 const paginatedRows = computed(() => {
-  const start = (currentPage.value - 1) * props.pageSize;
-  const end = start + props.pageSize;
+  if (perPage.value === 'all') {
+    return filteredRows.value.map((row, index) => ({ ...row, sl_no: index + 1 }))
+  }
+  const start = (currentPage.value - 1) * Number(perPage.value);
+  const end = start + Number(perPage.value);
   return filteredRows?.value?.slice(start, end).map((row, index) => ({
     ...row,
     sl_no: start + index + 1,

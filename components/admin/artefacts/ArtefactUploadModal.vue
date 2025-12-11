@@ -8,6 +8,17 @@
     @cancel="cancelUpload"
   />
 
+  <!-- Size Limit Exceeded Modal -->
+  <SizeLimitExceededModal
+    v-model:open="showSizeLimitModal"
+    :file-size="exceededFileSize"
+    :max-file-size="maxFileSizeDisplay"
+    :available-storage="availableStorageDisplay"
+    :used-storage="usedStorageDisplay"
+    :total-storage="totalStorageDisplay"
+    :exceeded-type="exceededType"
+  />
+
   <UModal
     :model-value="isOpen"
     @update:model-value="canCloseModal ? $emit('update:isOpen', $event) : null"
@@ -130,13 +141,13 @@
                     <p class="text-lg text-gray-300 mb-2">
                       <span class="font-medium">Click to upload</span> or drag and drop
                     </p>
-                    <p class="text-sm text-gray-400 mb-4">PDF, Word, TXT, CSV, Markdown, Images</p>
+                    <p class="text-sm text-gray-400 mb-4">PDF, DOC, CSV, Markdown, TXT files</p>
                     <p class="text-xs text-gray-500">Maximum file size: 20MB</p>
                     <input
                       ref="fileInput"
                       type="file"
                       class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      accept=".pdf,.doc,.docx,.txt,.csv,.md,.png,.jpg,.jpeg"
+                      accept=".pdf,.doc,.docx,.txt,.csv,.md"
                       @change="handleFileSelect"
                       :disabled="isAnyOperationInProgress"
                     />
@@ -332,9 +343,7 @@
                       By signing in, you allow us to access your Google Drive and download selected
                       files to our server. Your files are not stored or shared beyond this process.
                     </p>
-                    <p class="mt-2">
-                      Supported file types: CSV, MS Word, PDF, Markdown, and Text files
-                    </p>
+                    <p class="mt-2">Supported file types: PDF, DOC, CSV, Markdown, TXT files</p>
                   </div>
                 </div>
               </div>
@@ -515,14 +524,18 @@
 <script setup lang="ts">
 import { z } from 'zod'
 import type { FormSubmitEvent } from '#ui/types'
-import { nextTick, onMounted, onUnmounted, withDefaults } from 'vue'
+import { nextTick, onMounted, onUnmounted, withDefaults, ref, computed, reactive, watch } from 'vue'
 import { useArtefactsStore } from '~/stores/artefacts'
 import { useNotification } from '~/composables/useNotification'
+import { useOrganizationStore } from '~/stores/organization'
 import {
   useGoogleDrive,
   type GoogleDriveFile as GoogleOAuthFile,
 } from '~/composables/useGoogleDrive'
 import FileReplacementModal from '~/components/ui/FileReplacementModal.vue'
+import SizeLimitExceededModal from '~/components/ui/SizeLimitExceededModal.vue'
+import { useRoute } from 'vue-router'
+import { useAuthStore } from '~/stores/auth'
 
 interface GoogleDriveFile {
   id: string
@@ -548,11 +561,15 @@ const props = withDefaults(defineProps<Props>(), {
 // Initialize artefacts store
 const artefactsStore = useArtefactsStore()
 
+// Initialize organization store
+const orgStore = useOrganizationStore()
+
 // Initialize notification composable
 const { showError, showWarning, showSuccess } = useNotification()
 
 // Initialize Google Drive OAuth composable
 const googleDrive = useGoogleDrive()
+const exceededType = ref<'file' | 'storage'>('file')
 
 const emit = defineEmits<{
   'update:isOpen': [value: boolean]
@@ -638,6 +655,14 @@ const pendingUpload = reactive({
   formData: null as FormData | null,
 })
 
+// Size limit exceeded modal state
+const showSizeLimitModal = ref(false)
+const exceededFileSize = ref('')
+const maxFileSizeDisplay = ref('20 MB')
+const availableStorageDisplay = ref<string | undefined>()
+const usedStorageDisplay = ref<string | undefined>()
+const totalStorageDisplay = ref<string | undefined>()
+
 // Drag and drop state
 const isDragOver = ref(false)
 const dragCounter = ref(0)
@@ -697,6 +722,22 @@ const categoryOptions = computed(() => {
   }))
 })
 
+// Compute storage limit from plan
+const storageLimitGb = computed(() => {
+  return orgStore.currentPlan?.plan?.storage_limit_gb || 0
+})
+
+// Helper function to format file size
+const formatStorageSize = (gb: number): string => {
+  if (gb === 0) return 'Unlimited'
+  return `${gb} GB`
+}
+
+// Helper to convert bytes to GB
+const bytesToGb = (bytes: number): number => {
+  return bytes / (1024 * 1024 * 1024)
+}
+
 // Drag and drop handlers
 const handleDragEnter = (e: DragEvent) => {
   if (isAnyOperationInProgress.value) return
@@ -741,10 +782,44 @@ const handleFileSelect = (event: Event) => {
 
 const setFile = (file: File) => {
   try {
-    // Validate file size (20MB limit)
+    // Validate file size (20MB limit per file)
     if (file.size > 20 * 1024 * 1024) {
-      showError('File size must be less than 20MB')
+      exceededFileSize.value = formatFileSize(file.size)
+      maxFileSizeDisplay.value = '20 MB'
+      exceededType.value = 'file'
+
+      const currentStats = artefactsStore.getStats
+
+      usedStorageDisplay.value = formatFileSize(currentStats.totalSizeBytes || 0)
+      totalStorageDisplay.value = formatStorageAuto(storageLimitGb.value)
+
+      // ✅ FIX: Correct available storage
+      const usedGB = bytesToGb(currentStats.totalSizeBytes || 0)
+      const availableGB = Math.max(0, storageLimitGb.value - usedGB)
+      availableStorageDisplay.value = formatStorageAuto(availableGB)
+
+      showSizeLimitModal.value = true
       return
+    }
+
+    // Check against plan storage limit
+    if (storageLimitGb.value > 0) {
+      const currentStats = artefactsStore.getStats
+      const usedStorageGb = bytesToGb(currentStats.totalSizeBytes || 0)
+      const fileStorageGb = bytesToGb(file.size)
+      const availableGb = storageLimitGb.value - usedStorageGb
+
+      if (fileStorageGb > availableGb) {
+        exceededFileSize.value = formatFileSize(file.size)
+        maxFileSizeDisplay.value = '20 MB'
+        exceededType.value = 'storage'
+        usedStorageDisplay.value = formatFileSize(currentStats.totalSizeBytes || 0)
+        totalStorageDisplay.value = formatStorageAuto(storageLimitGb.value)
+        availableStorageDisplay.value = formatStorageAuto(Math.max(0, availableGb))
+
+        showSizeLimitModal.value = true
+        return
+      }
     }
 
     // Validate file type
@@ -807,6 +882,27 @@ const formatFileSize = (bytes: number) => {
   const sizes = ['Bytes', 'kB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+}
+
+const formatStorageAuto = (gb: number): string => {
+  const bytes = gb * 1024 * 1024 * 1024 // Convert GB → Bytes
+
+  if (bytes < 1024) {
+    return `${bytes.toFixed(0)} Bytes`
+  }
+
+  const kb = bytes / 1024
+  if (kb < 1024) {
+    return `${kb.toFixed(2)} KB`
+  }
+
+  const mb = kb / 1024
+  if (mb < 1024) {
+    return `${mb.toFixed(2)} MB`
+  }
+
+  const gbVal = mb / 1024
+  return `${gbVal.toFixed(2)} GB`
 }
 
 // UForm submission handler
@@ -960,26 +1056,26 @@ const uploadFromGoogleDrive = async () => {
 
   try {
     // Check for existing files and show notification
-    const fileNames = selectedGoogleDriveFiles.value.map(file => file.name)
+    const fileNames = selectedGoogleDriveFiles.value.map((file) => file.name)
     const bulkCheckResult = await artefactsStore.checkFilesExistBulk(fileNames)
 
     const existingFiles: { name: string; category: string }[] = []
     if (bulkCheckResult.success) {
-      bulkCheckResult.results.forEach(result => {
+      bulkCheckResult.results.forEach((result) => {
         if (result.exists) {
           existingFiles.push({
             name: result.originalFileName,
-            category: result.fileInfo?.category || 'Unknown'
+            category: result.fileInfo?.category || 'Unknown',
           })
         }
       })
     }
 
     if (existingFiles.length > 0) {
-      const fileList = existingFiles.map(f => `"${f.name}" (currently in ${f.category})`).join(', ')
-      showWarning(
-        `The following files already exist and will be overwritten: ${fileList}`
-      )
+      const fileList = existingFiles
+        .map((f) => `"${f.name}" (currently in ${f.category})`)
+        .join(', ')
+      showWarning(`The following files already exist and will be overwritten: ${fileList}`)
     }
 
     // Call the store method to upload files
@@ -1044,26 +1140,26 @@ const handleGoogleOAuthSignIn = async () => {
 
       try {
         // Check for existing files
-        const fileNames = selectedFiles.map(file => file.name)
+        const fileNames = selectedFiles.map((file) => file.name)
         const bulkCheckResult = await artefactsStore.checkFilesExistBulk(fileNames)
 
         const existingFiles: { name: string; category: string }[] = []
         if (bulkCheckResult.success) {
-          bulkCheckResult.results.forEach(result => {
+          bulkCheckResult.results.forEach((result) => {
             if (result.exists) {
               existingFiles.push({
                 name: result.originalFileName,
-                category: result.fileInfo?.category || 'Unknown'
+                category: result.fileInfo?.category || 'Unknown',
               })
             }
           })
         }
 
         if (existingFiles.length > 0) {
-          const fileList = existingFiles.map(f => `"${f.name}" (currently in ${f.category})`).join(', ')
-          showWarning(
-            `The following files already exist and will be overwritten: ${fileList}`,
-          )
+          const fileList = existingFiles
+            .map((f) => `"${f.name}" (currently in ${f.category})`)
+            .join(', ')
+          showWarning(`The following files already exist and will be overwritten: ${fileList}`)
         }
 
         // Convert GoogleOAuthFile to ArtefactGoogleDriveFile format for upload
@@ -1215,7 +1311,6 @@ const performComprehensiveCleanup = () => {
 
     // Clear store state
     artefactsStore.clearGoogleDriveFiles()
-
   } catch (error) {
     // Cleanup error handled silently
   }
@@ -1301,8 +1396,17 @@ onUnmounted(() => {
   performComprehensiveCleanup()
 })
 
-// Cleanup when user navigates away or closes browser
-onMounted(() => {
+// Fetch org plan and cleanup when user navigates away or closes browser
+onMounted(async () => {
+  try {
+    // Fetch organization plan to get storage limits
+    const orgId = modalOrgId.value
+    await orgStore.fetchOrgPlan(orgId)
+  } catch (error) {
+    // Silently handle fetch errors
+    console.error('Failed to fetch org plan:', error)
+  }
+
   const handleBeforeUnload = () => {
     performComprehensiveCleanup()
   }

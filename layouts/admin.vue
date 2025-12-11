@@ -106,6 +106,23 @@
               Analytics
             </UButton>
 
+            <UButton
+              :to="makeOrgLink('/admin/plans')"
+              variant="ghost"
+              justify="start"
+              icon="i-heroicons-currency-dollar"
+              :color="$route.name === 'admin-plans' ? 'primary' : 'gray'"
+              class="w-full"
+              :disabled="!isProfileComplete"
+              :title="
+                isClient && !isProfileComplete
+                  ? 'Complete your profile to access this section'
+                  : null
+              "
+            >
+              Plans
+            </UButton>
+
             <!-- Integrations with submenu -->
             <div>
               <button
@@ -297,7 +314,12 @@
 
               <!-- For non-superadmin users show org/company name -->
               <template v-else>
-                <span class="engraved-org text-xl">{{ selectedOrgDisplay }}</span>
+                <span class="engraved-org text-xl">{{ selectedOrgDisplay }} </span>
+                <span
+                  v-if="profileStore.userProfile?.plan_name"
+                  class="org-role-tag inline-block"
+                  >{{ profileStore.userProfile?.plan_name }}</span
+                >
               </template>
             </div>
 
@@ -337,25 +359,68 @@
 
       <ChatWidget v-if="auth && auth.isAuthenticated && auth.user?.role_id !== 0" />
     </div>
+
+    <!-- Subscription Required Modal -->
+    <SubscriptionRequiredModal
+      :open="subscriptionCheck.shouldShowModal"
+      @upgrade="handleUpgradeClick"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import ChatWidget from '~/components/chat/ChatWidget.vue'
 import { useAuthStore } from '~/stores/auth/index'
 import { useProfileStore } from '~/stores/profile/index'
 import { useSuperAdminStore } from '~/stores/superadmin/index'
+import { useSubscriptionCheck } from '~/composables/useSubscriptionCheck'
+import SubscriptionRequiredModal from '~/components/ui/SubscriptionRequiredModal.vue'
 
 const route = useRoute()
 const integrationsOpen = ref(true)
 const isClient = ref(false)
-onMounted(() => {
-  isClient.value = true
-})
 const auth = useAuthStore()
 const profileStore = useProfileStore()
 const superAdminStore = useSuperAdminStore()
+const subscriptionCheck = useSubscriptionCheck()
+
+const checkAndShowSubscriptionModal = async () => {
+  // Fetch org plan if user is authenticated
+  if (auth.user) {
+    try {
+      // Get org ID from query params (for superadmin) or use default
+      const orgId = (route.query?.org || route.query?.org_id) as string | undefined
+      await subscriptionCheck.checkSubscription(orgId)
+
+      // Check subscription status only for non-superadmin users on non-plans pages
+      if (auth.user?.role_id !== 0 && route.name !== 'admin-plans') {
+        if (!subscriptionCheck.hasPlan.value) {
+          subscriptionCheck.showModal()
+        } else {
+          subscriptionCheck.closeModal()
+        }
+      } else {
+        subscriptionCheck.closeModal()
+      }
+    } catch (error) {
+      console.error('Error checking subscription:', error)
+    }
+  }
+}
+
+onMounted(async () => {
+  isClient.value = true
+  await checkAndShowSubscriptionModal()
+})
+
+// Watch route changes to check subscription on every page navigation
+watch(
+  () => route.name,
+  async () => {
+    await checkAndShowSubscriptionModal()
+  },
+)
 
 // Ensure profile/org data is loaded on client for header display
 if (process.client) {
@@ -501,6 +566,12 @@ function makeOrgLink(path: string) {
   }
 }
 
+// Handle upgrade button click in subscription modal
+async function handleUpgradeClick() {
+  subscriptionCheck.closeModal()
+  subscriptionCheck.redirectToPlans()
+}
+
 const pageTitle = computed(() => {
   const titles: Record<string, string> = {
     'admin-dashboard': 'Dashboard',
@@ -513,6 +584,7 @@ const pageTitle = computed(() => {
     'admin-integrations-whatsapp': 'WhatsApp Integration',
     'admin-integrations-i-message': 'iMessage Integration',
     'admin-superadmin': 'Dashboard',
+    'admin-plans': 'Plans',
   }
   return titles[route.name as string] || 'Admin'
 })

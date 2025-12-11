@@ -50,7 +50,7 @@ export default defineEventHandler(async (event) => {
         COUNT(*) as total_users
       FROM users
       WHERE org_id = $1 AND role_id IS DISTINCT FROM '0'`,
-    [orgId]
+      [orgId]
     )
 
     // Get integration status
@@ -72,7 +72,7 @@ export default defineEventHandler(async (event) => {
     const startOfTodayUtc = dayjs().utc().startOf('day').toISOString()
     const startOfTomorrowUtc = dayjs().utc().add(1, 'day').startOf('day').toISOString()
     const tokenUsageQuery = await query(
-    `SELECT
+      `SELECT
       COUNT(*) as messages_today,
       COALESCE(SUM(total_tokens), 0) as total_tokens_today,
       COALESCE(SUM(total_cost), 0) as total_cost_today
@@ -81,19 +81,19 @@ export default defineEventHandler(async (event) => {
       AND created_at >= $2
       AND created_at < $3
       AND (question_text IS NULL OR question_text NOT ILIKE 'Document summarization:%')`,
-    [orgId, startOfTodayUtc, startOfTomorrowUtc]
+      [orgId, startOfTodayUtc, startOfTomorrowUtc]
     )
 
     // Get total token usage (all time)
     const totalTokenUsageQuery = await query(
-    `SELECT
+      `SELECT
       COUNT(*) as total_messages,
       COALESCE(SUM(total_tokens), 0) as total_tokens_all_time,
       COALESCE(SUM(total_cost), 0) as total_cost_all_time
     FROM token_cost_calculation
     WHERE org_id = $1
       AND (question_text IS NULL OR question_text NOT ILIKE 'Document summarization:%')`,
-    [orgId]
+      [orgId]
     )
 
     // Get integration details
@@ -178,7 +178,9 @@ export default defineEventHandler(async (event) => {
           status: integrationDetails.teams_status || 'inactive',
           serviceUrl: integrationDetails.teams_service_url || null
         }
-      }
+      },
+      users_count: parseInt(userCounts.total_users),
+      request_count: parseInt(totalTokenUsage.total_messages),
     }
 
     setResponseStatus(event, 200)

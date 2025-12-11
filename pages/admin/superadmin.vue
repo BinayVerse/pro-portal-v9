@@ -91,11 +91,18 @@
             </NuxtLink>
           </template>
         </UTable>
-        <div class="p-4 flex justify-end border-t border-dark-700">
+        <div class="p-4 flex items-center justify-between border-t border-dark-700">
+          <div class="flex items-center space-x-3">
+            <div class="text-sm text-gray-400 hidden sm:block">Rows per page</div>
+            <div class="w-24">
+              <USelect v-model="perPage" :options="perPageOptions" size="sm" />
+            </div>
+          </div>
+
           <UPagination
             v-model="page"
             :total="sortedRows.length"
-            :page-count="pageSize"
+            :page-count="computedPageCount"
             :show-first="true"
             :show-last="true"
             :show-edges="true"
@@ -207,7 +214,16 @@ const sortedRows = computed(() => {
 
 // Pagination
 const page = ref(1)
-const pageSize = ref(10)
+const perPage = ref(5)
+const perPageOptions = [
+  { label: '5', value: 5 },
+  { label: '10', value: 10 },
+  { label: '20', value: 20 },
+  { label: '50', value: 50 },
+  { label: 'All', value: 'all' },
+]
+const computedPageCount = computed(() => (perPage.value === 'all' ? Math.max(sortedRows.value.length, 1) : (perPage.value as number)))
+watch(perPage, () => { page.value = 1 })
 
 // Helper to format dates as DD/MM/YYYY for display
 const formatDate = (val: any) => {
@@ -226,13 +242,22 @@ const formatDate = (val: any) => {
 }
 
 const paginatedRows = computed(() => {
-  const start = (page.value - 1) * pageSize.value
-  const slice = sortedRows.value.slice(start, start + pageSize.value)
-  return slice.map((row: any, idx: number) => ({
+  if (perPage.value === 'all') {
+    return sortedRows.value.map((row: any, idx: number) => ({
+      ...row,
+      sl_no: idx + 1,
+      created_at: formatDate(row.created_at || row.createdAt),
+      last_used_at: row.last_used_date ? formatDate(row.last_used_date) : formatDate(row.last_used_at),
+    }))
+  }
+
+  const size = Number(perPage.value)
+  const start = (page.value - 1) * size
+  const end = start + size
+  return sortedRows.value.slice(start, end).map((row: any, idx: number) => ({
     ...row,
     sl_no: start + idx + 1,
     created_at: formatDate(row.created_at || row.createdAt),
-    // Prefer server-computed last_used_date (already in YYYY-MM-DD for requested timezone)
     last_used_at: row.last_used_date ? formatDate(row.last_used_date) : formatDate(row.last_used_at),
   }))
 })

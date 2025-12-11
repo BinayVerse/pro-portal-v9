@@ -80,6 +80,10 @@ export default defineEventHandler(async (event) => {
   const password = generateRandomPassword()
   // Normalize role id to number for consistent checks and DB insertion
   const roleIdNum = Number(role_id)
+  if (!Number.isFinite(roleIdNum)) {
+    setResponseStatus(event, 400)
+    throw new CustomError('Invalid role_id: expected a numeric role identifier', 400)
+  }
   const normalizedEmail = String(email || '').trim().toLowerCase()
 
   // Check for duplicates in the same org
@@ -114,7 +118,7 @@ export default defineEventHandler(async (event) => {
   // Prepare insert query
   let insertUserQuery = `
     INSERT INTO users (name, email, contact_number, role_id, org_id, added_by)
-    VALUES ($1, $2, $3, $4, $5, $6)
+    VALUES ($1, $2, $3, $4::int, $5, $6::text)
     RETURNING user_id;
   `
   // Ensure role_id is stored as a number
@@ -124,14 +128,12 @@ export default defineEventHandler(async (event) => {
     // For admin creation, do NOT store a password; user should set via reset link
     insertUserQuery = `
       INSERT INTO users (name, email, password, contact_number, role_id, org_id, added_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      VALUES ($1, $2, $3, $4, $5::int, $6, $7::text)
       RETURNING user_id;
     `
     values = [name, normalizedEmail, null, contact_number, roleIdNum, orgDetail.org_id, userId]
   }
 
-  // ensure org_id in values is the effective org (handles superadmin override via query or body)
-  values[4] = orgDetail.org_id
 
 
   try {
@@ -177,7 +179,7 @@ export default defineEventHandler(async (event) => {
       message: 'User created successfully',
       userId: newUserId,
     }
-  } catch (err) {
+  } catch (err: any) {
     if (err instanceof CustomError) {
       setResponseStatus(event, err.statusCode)
       return {

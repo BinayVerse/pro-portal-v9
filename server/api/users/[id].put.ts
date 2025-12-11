@@ -63,7 +63,17 @@ export default defineEventHandler(async (event) => {
     }
 
     const currentUser = userResult.rows[0]
-    const orgId = currentUser.org_id
+    let orgId = currentUser.org_id
+
+    // Allow superadmin to target a different org via query param (org or org_id)
+    try {
+      const q = getQuery(event) as Record<string, any>
+      const requestedOrg = q?.org || q?.org_id || null
+      if (callerRole === 0 && requestedOrg) {
+        const parsed = Number(requestedOrg)
+        orgId = Number.isFinite(parsed) ? parsed : String(requestedOrg)
+      }
+    } catch (e) {}
 
     // If not superadmin, ensure caller belongs to same org
     if (callerRole !== 0 && String(callerOrg) !== String(orgId)) {
@@ -94,7 +104,7 @@ export default defineEventHandler(async (event) => {
         throw new CustomError('Email is already in use within this organization', 409)
       }
 
-      updates.push(`email = $${updates.length + 1}`)
+      updates.push(`email = $${updates.length + 1}::text`)
       values.push(params.email)
     }
 
@@ -114,20 +124,20 @@ export default defineEventHandler(async (event) => {
         throw new CustomError('Contact number is already in use within this organization', 409)
       }
 
-      updates.push(`contact_number = $${updates.length + 1}`)
+      updates.push(`contact_number = $${values.length + 1}::text`)
       values.push(params.contact_number)
     }
 
     if (params.name) {
-      updates.push(`name = $${updates.length + 1}`)
+      updates.push(`name = $${values.length + 1}::text`)
       values.push(params.name)
     }
     if (params.role_id) {
-      updates.push(`role_id = $${updates.length + 1}`)
+      updates.push(`role_id = $${values.length + 1}::int`)
       values.push(params.role_id)
     }
     if (params.primary_contact !== undefined) {
-      updates.push(`primary_contact = $${updates.length + 1}`)
+      updates.push(`primary_contact = $${values.length + 1}::boolean`)
       values.push(params.primary_contact)
     }
 
@@ -137,7 +147,8 @@ export default defineEventHandler(async (event) => {
         JOIN organizations o ON u.org_id = o.org_id
         WHERE u.email = $1 AND u.role_id = '1' AND u.org_id != $2;
       `
-      const adminCheckResult = await query(checkAdminQuery, [params.email, orgId])
+      const emailToCheck = params.email || currentUser.email
+      const adminCheckResult = await query(checkAdminQuery, [emailToCheck, orgId])
 
       if (adminCheckResult.rows.length > 0) {
         setResponseStatus(event, 409)
@@ -149,7 +160,7 @@ export default defineEventHandler(async (event) => {
 
       const password = generateRandomPassword()
       const hashedPassword = await bcrypt.hash(password, 10)
-      updates.push(`password = $${updates.length + 1}`)
+      updates.push(`password = $${values.length + 1}::text`)
       values.push(null)
 
       const { resetLink } = await generateResetLink(currentUser.email, config.public.appUrl, userId)
@@ -219,21 +230,32 @@ export default defineEventHandler(async (event) => {
     }
 
     // set who updated
-    updates.push(`updated_by = $${updates.length + 1}`)
+    // updated_by — store as text to avoid mismatched column types
+    updates.push(`updated_by = $${values.length + 1}::text`)
     values.push(callerUserId)
 
+    // updated_at is set by DB
     updates.push(`updated_at = CURRENT_TIMESTAMP`)
+
+    // Determine placeholder indexes for WHERE clause
+    const whereUserIndex = values.length + 1
+    const whereOrgIndex = values.length + 2
+
+    // userId and orgId may be stored as text/varchar; pass as-is and cast to text
     values.push(userId)
     values.push(orgId)
 
     const updateUserQuery = `
-      UPDATE users 
-      SET ${updates.join(', ')} 
-      WHERE user_id = $${values.length - 1} AND org_id = $${values.length}
+      UPDATE users
+      SET ${updates.join(', ')}
+      WHERE user_id = $${whereUserIndex}::text AND org_id = $${whereOrgIndex}::text
       RETURNING user_id;
     `
 
-    const result = await query(updateUserQuery, values)
+    // Sanitize undefined values to null (pg cannot accept undefined)
+    const sanitizedValues = values.map(v => (typeof v === 'undefined' ? null : v))
+
+    const result = await query(updateUserQuery, sanitizedValues)
 
     if (result.rowCount === 0) {
       setResponseStatus(event, 404)

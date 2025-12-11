@@ -1,4 +1,4 @@
-import { defineEventHandler, readBody, setResponseStatus } from 'h3'
+import { defineEventHandler, setResponseStatus, getQuery } from 'h3'
 import { CustomError } from '../../utils/custom.error'
 import { query } from '../../utils/db'
 import jwt from 'jsonwebtoken'
@@ -35,6 +35,13 @@ export default defineEventHandler(async (event) => {
         throw new CustomError('Unauthorized: Invalid token', 401)
     }
 
+    const queryParams = getQuery(event) as Record<string, any>
+    const artefactId = queryParams.artefactId
+    if (!artefactId) {
+        setResponseStatus(event, 400)
+        throw new CustomError('Artefact ID is required', 400)
+    }
+
     // Determine caller org/role and allow superadmin override
     const userQuery = `
         SELECT u.org_id, u.role_id, o.org_name
@@ -52,15 +59,7 @@ export default defineEventHandler(async (event) => {
     const tokenUserOrg = userResult.rows[0].org_id
     const tokenUserRole = userResult.rows[0].role_id
 
-    const body = await readBody<{ artefactId?: number, org_id?: string }>(event)
-    const { artefactId } = body
-    if (!artefactId) {
-        setResponseStatus(event, 400)
-        throw new CustomError('Artefact ID is required', 400)
-    }
-
-    const q = getQuery(event) as Record<string, any>
-    const requestedOrg = q?.org || q?.org_id || body?.org_id || null
+    const requestedOrg = queryParams?.org || queryParams?.org_id || null
     const effectiveOrg = tokenUserRole === 0 && requestedOrg ? String(requestedOrg) : tokenUserOrg
 
     // Fetch org_name for effectiveOrg

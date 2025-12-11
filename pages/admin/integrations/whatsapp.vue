@@ -611,7 +611,8 @@ const webhookUrl = computed(() => {
 
 const disconnectWhatsApp = async () => {
   try {
-    await integrationsStore.disconnectWhatsApp()
+    const orgQuery = route?.query?.org || route?.query?.org_id || null
+    await integrationsStore.disconnectWhatsApp(orgQuery ? String(orgQuery) : null)
     showDisconnectModal.value = false
   } catch (error) {
     console.error('Error disconnecting WhatsApp:', error)
@@ -630,7 +631,8 @@ const refreshQrCode = async () => {
 
 const downloadQrCode = async () => {
   try {
-    await integrationsStore.downloadQrCode()
+    const orgQuery = route?.query?.org || route?.query?.org_id || null
+    await integrationsStore.downloadQrCode(orgQuery ? String(orgQuery) : null)
   } catch (error) {
     console.error('Download failed:', error)
     showError('Error downloading QR code, please try again.')
@@ -717,10 +719,11 @@ const saveConfiguration = async () => {
     // Check if this is an update or create
     const isUpdate = Boolean(integrationsStore.whatsappDetails?.business_whatsapp_number)
 
+    const orgQuery = route?.query?.org || route?.query?.org_id || null
     if (isUpdate) {
-      await integrationsStore.updateWhatsAppAccount(whatsappData)
+      await integrationsStore.updateWhatsAppAccount(whatsappData, orgQuery ? String(orgQuery) : null)
     } else {
-      await integrationsStore.createWhatsAppAccount(whatsappData)
+      await integrationsStore.createWhatsAppAccount(whatsappData, orgQuery ? String(orgQuery) : null)
     }
 
     // Fetch QR code after successful save

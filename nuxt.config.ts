@@ -16,6 +16,7 @@ export default defineNuxtConfig({
       botEndpoint: process.env.NUXT_PUBLIC_BOT_ENDPOINT,
       microsoftAppId: process.env.NUXT_PUBLIC_MICROSOFT_APP_ID,
       microsoftRedirectUri: process.env.NUXT_PUBLIC_MICROSOFT_REDIRECT_URI,
+      chargebeePublishableKey: process.env.NUXT_PUBLIC_CHARGEBEE_PUBLISHABLE_KEY,
       apiBase: process.env.API_BASE_URL || '/api',
     },
     dbUser: process.env.NUXT_DB_USER,
@@ -34,7 +35,18 @@ export default defineNuxtConfig({
     awsAccessKeyId: process.env.NUXT_AWS_ACCESS_KEY_ID,
     awsSecretAccessKey: process.env.NUXT_AWS_SECRET_ACCESS_KEY,
     awsBucketName: process.env.NUXT_AWS_BUCKET_NAME,
-    awsFolderName: process.env.NUXT_AWS_FOLDER_NAME
+    awsFolderName: process.env.NUXT_AWS_FOLDER_NAME,
+    // Chargebee
+    chargebeeSite: process.env.NUXT_CHARGEBEE_SITE,
+    chargebeeApiKey: process.env.NUXT_CHARGEBEE_API_KEY,
+    chargebeeFamily: process.env.NUXT_CHARGEBEE_FAMILY,
+    chargebeeProductCatalogVersion: process.env.NUXT_CHARGEBEE_CATALOG_VERSION || '2',
+    chargebeeGatewayKey: process.env.NUXT_CHARGEBEE_GATEWAY_KEY,
+    // Braintree
+    braintreeEnvironment: process.env.NUXT_BRAINTREE_ENVIRONMENT,
+    braintreeMerchantId: process.env.NUXT_BRAINTREE_MERCHANT_ID,
+    braintreePublicKey: process.env.NUXT_BRAINTREE_PUBLIC_KEY,
+    braintreePrivateKey: process.env.NUXT_BRAINTREE_PRIVATE_KEY,
   },
   hooks: {
     listen: () => validateEnvs(),
@@ -42,7 +54,10 @@ export default defineNuxtConfig({
 
   vite: {
     ssr: { external: ['@headlessui/vue'] },
-    optimizeDeps: { exclude: ['@headlessui/vue'] }
+    optimizeDeps: { exclude: ['@headlessui/vue'] },
+    server: {
+      allowedHosts: ['eufemia-umbiliform-ardelle.ngrok-free.dev']
+    }
   },
 
   build: {
