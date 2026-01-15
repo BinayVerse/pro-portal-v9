@@ -67,11 +67,7 @@
           </UFormGroup>
 
           <!-- Phone Number -->
-          <UFormGroup
-            name="phone"
-            label="Phone Number"
-            required
-          >
+          <UFormGroup name="phone" label="Phone Number" required>
             <LibVueTelInput
               ref="phoneRef"
               v-model="state.phone"
@@ -85,9 +81,9 @@
         <div class="space-y-6 border-t border-dark-700 pt-8">
           <h3 class="text-lg font-semibold text-white">Organization Details</h3>
 
-          <!-- Country and EIN Grid -->
+          <!-- Country and Tax ID on single line -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Country -->
+            <!-- Country Selection -->
             <UFormGroup name="country" label="Country" required>
               <USelect
                 v-model="state.country"
@@ -95,16 +91,22 @@
                 eager-validation
                 selectClass="custom-select"
                 placeholder="Select country"
+                option-attribute="label"
               />
             </UFormGroup>
 
-            <!-- EIN -->
-            <UFormGroup name="ein" label="EIN" required>
+            <!-- Dynamic Tax ID Field -->
+            <UFormGroup
+              v-if="state.country && currentCountryTaxInfo"
+              name="taxId"
+              :label="currentCountryTaxInfo.taxIdLabel"
+              required
+            >
               <UInput
-                v-model="state.ein"
+                v-model="state.taxId"
                 eager-validation
                 inputClass="custom-input"
-                placeholder="XX-XXXXXXX"
+                :placeholder="currentCountryTaxInfo.taxIdPlaceholder"
               />
             </UFormGroup>
           </div>
@@ -351,8 +353,8 @@
       </div>
 
       <!-- Login link -->
-      <div class="text-center">
-        <NuxtLink to="/login" class="btn-outline w-full"> Sign In Instead </NuxtLink>
+      <div class="space-y-2">
+        <NuxtLink to="/login" class="btn-outline w-full block text-center"> Sign In Instead </NuxtLink>
       </div>
       <ConfirmPopup
         :isOpen="showWelcomeModal"
@@ -375,6 +377,12 @@ import { z } from 'zod'
 import type { FormSubmitEvent } from '#ui/types'
 import ConfirmPopup from '~/components/ui/ConfirmPopup.vue'
 import { useRoute } from 'vue-router'
+import {
+  COUNTRY_OPTIONS,
+  validateTaxId,
+  getTaxIdErrorMessage,
+  getCountryTaxInfo,
+} from '~/utils/countries'
 
 definePageMeta({
   layout: 'minimal',
@@ -477,69 +485,79 @@ const getStrengthText = (strength: number) => {
   return 'Strong'
 }
 
-// Zod schema for form validation
-const schema = z
-  .object({
-    name: z.string().min(1, 'Full name is required').max(255, 'Name too long'),
-    company: z.string().min(1, 'Company name is required').max(255, 'Company name too long'),
-    email: z.string().email('Invalid email address').max(255, 'Email too long'),
-    country: z.string().min(1, 'Country is required'),
-    ein: z.string().min(1, 'EIN is required').max(20, 'EIN too long'),
-    password: z
-      .string()
-      .min(8, 'Password must be at least 8 characters')
-      .regex(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-        'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
-      ),
-    confirmPassword: z.string().min(1, 'Please confirm your password'),
-    // phone validation handled at component level
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: 'Passwords do not match',
-    path: ['confirmPassword'],
-  })
+// Zod schema for form validation with country-specific tax ID messages
+const getSchema = (selectedCountry: string) => {
+  const countryTaxInfo = getCountryTaxInfo(selectedCountry)
+  const taxIdLabel = countryTaxInfo?.taxIdLabel || 'Tax ID'
+  const isOthersCountry = selectedCountry === 'others'
 
-type Schema = z.output<typeof schema>
+  return z
+    .object({
+      name: z.string().min(1, 'Full name is required').max(255, 'Name too long'),
+      company: z.string().min(1, 'Company name is required').max(255, 'Company name too long'),
+      email: z.string().email('Invalid email address').max(255, 'Email too long'),
+      country: z.string().min(1, 'Country is required'),
+      taxId: isOthersCountry
+        ? z
+            .string()
+            .min(5, `${taxIdLabel} must be at least 5 characters`)
+            .max(50, 'Tax ID too long')
+        : z.string().min(1, `${taxIdLabel} is required`).max(50, 'Tax ID too long'),
+      password: z
+        .string()
+        .min(8, 'Password must be at least 8 characters')
+        .regex(
+          /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+          'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
+        ),
+      confirmPassword: z.string().min(1, 'Please confirm your password'),
+      // phone validation handled at component level
+    })
+    .refine((data) => data.password === data.confirmPassword, {
+      message: 'Passwords do not match',
+      path: ['confirmPassword'],
+    })
+    .refine((data) => validateTaxId(data.country, data.taxId), {
+      message: `Invalid ${taxIdLabel} format`,
+      path: ['taxId'],
+    })
+}
+
+const schema = computed(() => getSchema(state.country))
+
+type Schema = z.infer<ReturnType<typeof getSchema>>
 
 const state = reactive({
   name: '',
   company: '',
   email: '',
-  country: '',
-  ein: '',
+  country: 'usa',
+  taxId: '',
   password: '',
   confirmPassword: '',
   phone: null as string | null,
 })
 
-// Country options list
-const countryOptions = [
-  'United States',
-  'Canada',
-  'United Kingdom',
-  'Australia',
-  'Germany',
-  'France',
-  'India',
-  'Japan',
-  'China',
-  'Brazil',
-  'Mexico',
-  'South Korea',
-  'Netherlands',
-  'Spain',
-  'Italy',
-  'Sweden',
-  'Switzerland',
-  'Singapore',
-  'Hong Kong',
-  'United Arab Emirates',
-]
+// Country options computed from countries configuration
+const countryOptions = computed(() => COUNTRY_OPTIONS)
+
+// Get current country tax info
+const currentCountryTaxInfo = computed(() => {
+  return getCountryTaxInfo(state.country)
+})
 
 const togglePasswordVisibility = () => {
   showPassword.value = !showPassword.value
 }
+
+// Clear tax ID and validation errors when country changes
+watch(
+  () => state.country,
+  () => {
+    state.taxId = ''
+    formRef.value?.clear('taxId')
+  },
+)
 
 // Function to validate phone and update UI
 function validatePhoneField() {
@@ -575,7 +593,7 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       wpNumber: phoneNumberWithCountryCode,
       companyName: event.data.company.trim(),
       country: event.data.country,
-      ein: event.data.ein.trim(),
+      taxId: event.data.taxId.trim(),
     }
 
     // Attach registrationToken if present (from AWS marketplace flow)
@@ -595,8 +613,8 @@ async function onSubmit(event: FormSubmitEvent<Schema>) {
       name: '',
       company: '',
       email: '',
-      country: '',
-      ein: '',
+      country: 'usa',
+      taxId: '',
       password: '',
       confirmPassword: '',
       phone: null,

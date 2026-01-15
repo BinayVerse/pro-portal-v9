@@ -68,7 +68,10 @@
             icon="i-heroicons-arrow-up-right-20-solid"
             @click="handleUpgradeClick"
           >
-            Upgrade Plan
+            View plans & Upgrade
+            <!-- {{
+              statusToShow.severity === 'critical' ? 'Show available add-on plans' : 'Upgrade Plan'
+            }} -->
           </UButton>
         </div>
       </template>
@@ -120,7 +123,7 @@ const statusToShow = computed(() => {
     return {
       title: 'Plan Limits Exhausted',
       message:
-        'The usage limit for your plan has been reached. Some features may be restricted until you upgrade.',
+        'The usage limit for your plan has been reached. Upgrade your plan or Purchase an Add-on to continue.',
       metrics: data.exceededMetrics,
       severity: 'critical' as const,
     }

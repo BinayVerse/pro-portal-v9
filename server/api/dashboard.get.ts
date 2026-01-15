@@ -54,7 +54,7 @@ export default defineEventHandler(async (event) => {
       [orgId],
     )
 
-    // Recent artefacts: latest updated_at desc, limit 5
+    // Recent artifacts: latest updated_at desc, limit 5
     const artefactsQ = await query(
       `SELECT d.id, d.name, d.file_size, d.status, d.updated_at, d.file_category, d.description, d.is_summarized, d.summary, d.document_link,
         COALESCE(c.name, 'Uncategorized') AS category_name, COALESCE(u.name, 'Unknown User') AS uploaded_by_name

@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken'
 import { CustomError } from '../../utils/custom.error'
 import { query, getClient } from '../../utils/db'
 import { setResponseStatus } from 'h3'
+import { checkConversationLimitExceeded } from '../../utils/usageLimits'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -48,6 +49,15 @@ export default defineEventHandler(async (event) => {
   if (!user_id) throw new CustomError('user_id is required', 400)
   if (!chat_id) throw new CustomError('chat_id is required', 400)
   if (!message) throw new CustomError('message is required', 400)
+
+  // Check conversation limit if org_id is provided
+  if (org_id) {
+    const conversationLimitCheck = await checkConversationLimitExceeded(org_id)
+    if (conversationLimitCheck.exceeded) {
+      setResponseStatus(event, 403)
+      throw new CustomError(conversationLimitCheck.message, 403)
+    }
+  }
 
   try {
     // If upsert requested and role is 'interaction', try to update existing interaction row

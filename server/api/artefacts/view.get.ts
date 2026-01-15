@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
     const artefactId = queryParams.artefactId
     if (!artefactId) {
         setResponseStatus(event, 400)
-        throw new CustomError('Artefact ID is required', 400)
+        throw new CustomError('Artifact ID is required', 400)
     }
 
     // Determine caller org/role and allow superadmin override

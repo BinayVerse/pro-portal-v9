@@ -6,8 +6,8 @@ export interface PlanDetails {
   duration: string
   users: number
   limit_requests: number
-  add_ons_unlimited_requests: boolean
-  add_ons_price: string
+  // add_ons_unlimited_requests: boolean
+  // add_ons_price: string
   features: string[]
   trial_period_days: number
   storage_limit_gb: number
@@ -21,7 +21,6 @@ export interface BillingAddress {
   name?: string
   contact_number?: string
   email?: string
-  tax_number?: string
   address_line1?: string
   address_line2?: string
   address_city?: string
@@ -44,8 +43,14 @@ export interface UserProfile {
   plan_id?: string
   plan_name?: string
   plan_details?: PlanDetails | null
+  subscription_status?: any
   isCompanyRegistered?: boolean
+  org_country?: string
+  org_tax_id?: string
   billing_address?: BillingAddress
+  plan_expiry?: string | null
+  has_availed_free_plan?: boolean
+  has_availed_paid_plan?: boolean
   createdAt?: string
   updatedAt?: string
 }

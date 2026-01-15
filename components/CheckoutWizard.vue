@@ -9,44 +9,69 @@
       <p class="text-gray-300 mb-4">Your selected plan</p>
       <div class="border rounded p-4 bg-dark-900">
         <h3 class="text-white font-semibold text-lg">
-          {{ selected?.name || selected?.title || 'No plan selected' }}
+          {{ selectedPlanName }}
+          <!-- <span v-if="isAddonPlan" class="text-sm text-gray-400 ml-2">- Add-On Plan </span> -->
           <span
-            v-if="selected?.period || selected?._raw?.interval || selected?.interval"
+            v-if="!isAddonPlan && (selected?.period || selected?.interval)"
             class="text-sm text-gray-400 ml-2"
-            >-
-            {{
-              formatPeriod(selected?.period || selected?._raw?.interval || selected?.interval)
-            }}</span
           >
+            - {{ formatPeriod(selected?.period || selected?.interval) }}
+          </span>
         </h3>
         <p class="text-gray-400 mt-1">
           {{ selected?._raw?.description || selected?.description || '' }}
         </p>
-        <p class="text-gray-200 font-bold mt-3">
-          {{
-            fmtPrice(
-              selected?.price || selected?.price_amount,
-              selected?.currency || selected?.price_currency,
-            )
-          }}
+        <p class="text-gray-200 font-bold mt-3" v-if="selected">
+          <template v-if="isFreePlan"> Free </template>
+
+          <template v-else-if="selected?.contact_sales"> Contact Sales </template>
+
+          <template v-else>
+            {{
+              fmtPrice(
+                selected?.price || selected?.price_amount,
+                selected?.currency || selected?.price_currency,
+              )
+            }}
+          </template>
+
+          <span v-if="!isFreePlan" class="text-sm text-gray-400 ml-1">
+            {{ isAddonPlan ? '/pack' : '/' + formatPeriod(selected?.period || selected?.interval) }}
+          </span>
         </p>
+
         <div v-if="selected" class="mt-4">
           <p class="text-sm text-gray-300 font-semibold mb-2">What's included</p>
           <ul class="space-y-2">
-            <li
-              v-for="(f, idx) in deriveFeatures(
-                selected?.price ? selected : selected?._raw || selected,
-              )"
-              :key="idx"
-              class="flex items-start gap-2 text-gray-300"
-            >
-              <UIcon name="i-heroicons-check" class="w-4 h-4 text-primary-400 mt-1" />
-              <span>{{ f }}</span>
-            </li>
+            <!-- ADD-ON PLANS → ONLY DB FEATURES -->
+            <template v-if="isAddonPlan">
+              <li
+                v-for="(f, idx) in selected?._raw?.features || selected?.features || []"
+                :key="idx"
+                class="flex items-start gap-2 text-gray-300"
+              >
+                <UIcon name="i-heroicons-check" class="w-4 h-4 text-primary-400 mt-1" />
+                <span>{{ f }}</span>
+              </li>
+            </template>
+
+            <!-- BASE PLANS → DERIVED FEATURES -->
+            <template v-else>
+              <li
+                v-for="(f, idx) in deriveFeatures(selected)"
+                :key="idx"
+                class="flex items-start gap-2 text-gray-300"
+              >
+                <UIcon name="i-heroicons-check" class="w-4 h-4 text-primary-400 mt-1" />
+                <span>{{ f }}</span>
+              </li>
+            </template>
           </ul>
         </div>
         <div class="mt-4">
-          <button class="btn-outline mr-2" @click="emitChangePlan">Change Plan</button>
+          <button class="btn-outline mr-2" @click="emitChangePlan">
+            {{ isAddonPlan ? 'Change Add-On Plan' : 'Change Base Plan' }}
+          </button>
         </div>
       </div>
     </div>
@@ -81,22 +106,27 @@
           Selected Plan:
           <span class="text-white font-medium"
             >{{ selected?.name
-            }}<span v-if="selected?.period || selected?._raw?.interval || selected?.interval">
-              -
-              {{
-                formatPeriod(selected?.period || selected?._raw?.interval || selected?.interval)
-              }}</span
-            ></span
+            }}<span v-if="!isAddonPlan && (selected?.period || selected?.interval)">
+              - {{ formatPeriod(selected?.period || selected?.interval) }}
+            </span></span
           >
         </p>
         <p class="text-gray-300">
           Price:
-          <span class="text-white font-medium">{{
-            fmtPrice(
-              selected?.price || selected?.price_amount,
-              selected?.currency || selected?.price_currency,
-            )
-          }}</span>
+          <span class="text-white font-medium" v-if="isFreePlan"> Free </span>
+          <span class="text-white font-medium" v-else>
+            {{
+              fmtPrice(
+                selected?.price || selected?.price_amount,
+                selected?.currency || selected?.price_currency,
+              )
+            }}
+            <span class="text-sm text-gray-400 ml-1">
+              {{
+                isAddonPlan ? '/pack' : '/' + formatPeriod(selected?.period || selected?.interval)
+              }}
+            </span>
+          </span>
         </p>
       </div>
     </div>
@@ -258,9 +288,16 @@
           <div class="p-4 bg-dark-800 border border-dark-700 rounded">
             <div class="text-sm text-gray-400">Plan Details:</div>
             <div class="text-white font-semibold">
-              {{ selected?.name }} -
-              {{ formatPeriod(selected?.period || selected?._raw?.interval || selected?.interval) }}
+              {{ selected?.name }}
+              <span v-if="isAddonPlan"> - Add-On Plan </span>
+              <span v-else>
+                -
+                {{
+                  formatPeriod(selected?.period || selected?._raw?.interval || selected?.interval)
+                }}
+              </span>
             </div>
+
             <div class="text-white text-2xl font-bold">
               {{
                 fmtPrice(
@@ -354,6 +391,7 @@ import {
   getStateName,
   type CSCOption,
 } from '~/utils/csc'
+import { buildSubscriptionMetadata } from '~/utils/index'
 
 const countryOptions = ref<CSCOption[]>([])
 const stateOptions = ref<CSCOption[]>([])
@@ -362,7 +400,7 @@ const cityOptions = ref<CSCOption[]>([])
 const payments = usePaymentsStore()
 
 const props = defineProps<{ orgId?: string; selectedPlan?: any }>()
-const emit = defineEmits(['change-plan', 'order-success'])
+const emit = defineEmits(['change-plan', 'order-success', 'order-error'])
 
 const auth = useAuth()
 const authStore = useAuthStore()
@@ -374,7 +412,30 @@ const profileStore = useProfileStore()
 const allDetails = computed(() => payments.billingDetails)
 const siteKey = config.public?.chargebeePublishableKey
 
+const isAddonPlan = computed(() => {
+  const raw = selected.value?.raw || selected.value
+  return raw?.plan_type === 'addon'
+})
+
+const isFreePlan = computed(() => {
+  const raw = selected.value?._raw || selected.value?.raw || selected.value
+  return (
+    Number(raw?.price) === 0 && raw?.contact_sales !== true && raw?.metadata?.free_plan === true
+  )
+})
+
+const subscriptionOnlyPlan = computed(() => {
+  if (!selected.value) return null
+  if (isAddonPlan.value) return null
+  return selected.value
+})
+
+const selectedPlanName = computed(() =>
+  (selected.value?.name || selected.value?.title || 'No plan selected').trim(),
+)
+
 const step = ref(1)
+const addonQuantity = ref(1)
 const selected = ref<any | null>(null)
 const billing = ref({
   name: '',
@@ -398,6 +459,73 @@ const messageTitle = ref('')
 const messageText = ref('')
 const messageDetails = ref<string | null>(null)
 const messageType = ref<'info' | 'success' | 'error' | 'warning'>('info')
+
+function getActivationSuccessMessage(purchaseType: 'subscription' | 'addon', isFree: boolean) {
+  if (isFree) {
+    return {
+      title: 'Free plan activated',
+      message: 'Your Free plan is being activated and will appear in your account shortly.',
+    }
+  }
+
+  if (purchaseType === 'addon') {
+    return {
+      title: 'Add-On activated',
+      message: 'Your Add-On is being activated and will appear in your account shortly.',
+    }
+  }
+
+  return {
+    title: 'Subscription activated',
+    message: 'Your subscription is being activated and will appear in your account shortly.',
+  }
+}
+
+function buildCheckoutPayload() {
+  const {
+    firstName,
+    lastName,
+    country,
+    region,
+    city,
+    zip,
+    addressLine1,
+    addressLine2,
+    phone,
+    gstNumber,
+    paidAmount,
+  } = allDetails.value
+  // keep modal open and show loading state
+
+  // console.log('Submitting payment with details:', allDetails.value)
+
+  return {
+    firstName: firstName || '',
+    lastName: lastName || '',
+    country: country || '',
+    countryCode: country || '',
+    region: region || '',
+    city: city || '',
+    zipcode: zip || '',
+    addressLine1: addressLine1 || '',
+    addressLine2: addressLine2 || '',
+    phoneNumber: phone || '',
+    amount: paidAmount,
+    email: billing.value.email || '',
+    orgName: profileStore.userProfile?.company || '',
+    orgId: authStore.user?.org_id || null,
+    subscriptionTypeId: selected.value.id || '',
+    purchaseType: isAddonPlan.value ? 'addon' : 'subscription',
+    quantity: isAddonPlan.value ? addonQuantity.value : 1,
+    planType: isAddonPlan.value
+      ? 'addon'
+      : (selected.value?.period || selected.value?.interval) === 'year'
+        ? 'yearly'
+        : 'monthly',
+    currencyCode: selected.value?.currency || selected.value?.price_currency || 'USD',
+    gstNumber: gstNumber || '',
+  }
+}
 
 function showAlert(
   title: string,
@@ -489,8 +617,10 @@ onMounted(async () => {
     billing.value.address.state = ba.address_state || ''
     billing.value.address.zip = ba.address_zip || ''
     billing.value.address.country = ba.address_country || ''
-    billing.value.taxId = ba.tax_number || ''
   }
+
+  // ✅ AUTO-FILL TAX ID from organization profile (not from billing_address)
+  billing.value.taxId = profileStore.userProfile?.org_tax_id || ''
 
   countryOptions.value = getAllCountries()
 
@@ -524,8 +654,19 @@ onMounted(async () => {
     country: billing.value.address.country,
     zip: billing.value.address.zip,
     paidAmount: selected.value?.price || selected.value?.price_amount || 0,
+    purchaseType: isAddonPlan.value ? 'addon' : 'subscription',
+    quantity: isAddonPlan.value ? addonQuantity.value : 1,
   })
 })
+
+watch(
+  () => billing.value.taxId,
+  (newTaxId) => {
+    payments.setBillingDetails({
+      gstNumber: newTaxId || '',
+    })
+  },
+)
 
 watch(
   () => billing.value.address,
@@ -542,6 +683,10 @@ watch(
   },
   { deep: true },
 )
+
+// watch(addonQuantity, (q) => {
+//   payments.setBillingDetails({ quantity: q })
+// })
 
 // Country watcher
 watch(
@@ -675,14 +820,63 @@ async function nextStep() {
     return
   }
   if (step.value === 3) {
-    // Billing address -> initialize drop-in and go to payment (step 4)
     if (!validateStep3()) return
-    const ok = await createHostedPage()
-    if (!ok) {
-      // failed to init dropin; keep on step 3 and show error
+
+    // ✅ FREE PLAN: skip payment step entirely
+    if (isFreePlan.value) {
+      await handleFreePlanActivation()
       return
     }
+
+    // 💳 PAID / ADD-ON: normal payment flow
+    const ok = await createHostedPage()
+    if (!ok) return
     return
+  }
+}
+
+async function handleFreePlanActivation() {
+  checkoutLoading.value = true
+  try {
+    const raw = selected.value?._raw || selected.value
+    const payload = buildCheckoutPayload()
+    const metadata = buildSubscriptionMetadata(payload, authStore.user?.email || 'unknown', {
+      isFree: isFreePlan.value,
+    })
+
+    const res = await payments.activateFreePlan({
+      planId: raw.id,
+      metadata,
+      billing: {
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+        email: payload.email,
+        phoneNumber: payload.phoneNumber,
+        addressLine1: payload.addressLine1,
+        addressLine2: payload.addressLine2,
+        city: payload.city,
+        region: payload.region,
+        zipcode: payload.zipcode,
+        country: payload.country,
+        taxId: payload.gstNumber,
+      },
+    })
+
+    if (!res.success) {
+      throw new Error(res.error || 'Free plan activation failed')
+    }
+
+    const successMsg = getActivationSuccessMessage('subscription', true)
+
+    emit('order-success', successMsg)
+
+    showAlert(successMsg.title, successMsg.message, null, 'success')
+  } catch (e: any) {
+    const msg = e?.message || 'Failed to activate free plan'
+    emit('order-error', { title: 'Activation failed', message: msg })
+    showAlert('Activation failed', msg, null, 'error')
+  } finally {
+    checkoutLoading.value = false
   }
 }
 
@@ -724,6 +918,8 @@ async function confirmPayment() {
     return
   }
   try {
+    // keep modal open and show loading state
+    checkoutLoading.value = true
     const {
       firstName,
       lastName,
@@ -740,9 +936,8 @@ async function confirmPayment() {
       gwToken,
     } = allDetails.value
     // keep modal open and show loading state
-    checkoutLoading.value = true
 
-    console.log('Submitting payment with details:', allDetails.value)
+    // console.log('Submitting payment with details:', allDetails.value)
 
     const payload: any = {
       firstName: firstName || '',
@@ -758,14 +953,13 @@ async function confirmPayment() {
       amount: paidAmount,
       email: billing.value.email || '',
       orgName: profileStore.userProfile?.company || '',
-      subscriptionTypeId: cbPlanId.value || '',
-      planType:
-        (selected.value &&
-          (selected.value.period || selected.value.interval || selected.value._raw?.interval)) ===
-          'year' ||
-        (selected.value &&
-          (selected.value.period || selected.value.interval || selected.value._raw?.interval)) ===
-          'yearly'
+      orgId: authStore.user?.org_id || null,
+      subscriptionTypeId: selected.value.id || '',
+      purchaseType: isAddonPlan.value ? 'addon' : 'subscription',
+      quantity: isAddonPlan.value ? addonQuantity.value : 1,
+      planType: isAddonPlan.value
+        ? 'addon'
+        : (selected.value?.period || selected.value?.interval) === 'year'
           ? 'yearly'
           : 'monthly',
       currencyCode: selected.value?.currency || selected.value?.price_currency || 'USD',
@@ -776,39 +970,56 @@ async function confirmPayment() {
       gwToken: gwToken,
     }
 
+    // console.log('Final payment payload:', payload)
+
     // Call checkout API to perform transaction and Chargebee sync
     try {
-      const checkoutResp = await payments.checkout(payload)
+      const metadata = buildSubscriptionMetadata(payload, authStore.user?.email || 'unknown', {
+        isFree: false,
+      })
+
+      const checkoutResp = await payments.checkout({
+        ...payload,
+        metadata,
+      })
 
       if (!checkoutResp || !checkoutResp.success)
         throw new Error(checkoutResp?.message || 'Checkout failed')
 
-      await orgStore.fetchOrgPlan()
-      await profileStore.fetchUserProfile()
+      // await orgStore.fetchOrgPlan()
+      // await profileStore.fetchUserProfile()
 
       // only close modal after success
       showSummary.value = false
       // emit event so parent modals can adjust visibility
-      emit('order-success', {
-        title: 'Payment complete',
-        message: 'Subscription should appear in Chargebee shortly.',
-      })
-      showAlert(
-        'Payment complete',
-        'Subscription should appear in Chargebee shortly.',
-        null,
-        'success',
+      const successMsg = getActivationSuccessMessage(
+        isAddonPlan.value ? 'addon' : 'subscription',
+        false,
       )
+
+      emit('order-success', successMsg)
+
+      showAlert(successMsg.title, successMsg.message, null, 'success')
     } catch (e: any) {
       console.warn('Checkout failed', e)
-      lastError.value = e?.message || String(e)
+      // lastError.value = e?.message || String(e)
       throw e
     } finally {
       checkoutLoading.value = false
     }
   } catch (e: any) {
     console.warn('submitPayment error', e)
-    lastError.value = e?.message || String(e)
+
+    const msg =
+      e?.data?.message || e?.message || 'Payment failed. Please try again with another card.'
+
+    showSummary.value = false
+
+    // 🔥 Tell parent to handle error + reset flow
+    emit('order-error', {
+      title: 'Payment failed',
+      message: msg,
+    })
   } finally {
     checkoutLoading.value = false
   }
@@ -838,10 +1049,12 @@ function focusDropin() {
 }
 
 function fmtPrice(v: any, currency = 'USD') {
-  if (!v && v !== 0) return 'Contact Sales'
   const n = Number(v)
-  if (!isFinite(n) || n === 0) return 'Contact Sales'
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(n)
+  if (!isFinite(n)) return ''
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency,
+  }).format(n)
 }
 </script>
 

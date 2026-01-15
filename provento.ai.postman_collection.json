@@ -232,7 +232,7 @@
       ]
     },
     {
-      "name": "Artefacts (Documents)",
+      "name": "Artifacts (Documents)",
       "item": [
         {
           "name": "Upload File",
@@ -268,7 +268,7 @@
           "response": []
         },
         {
-          "name": "List Artefacts",
+          "name": "List Artifacts",
           "request": {
             "method": "GET",
             "header": [],
@@ -288,7 +288,7 @@
           "response": []
         },
         {
-          "name": "View Artefact",
+          "name": "View Artifact",
           "request": {
             "method": "GET",
             "header": [],
@@ -300,7 +300,7 @@
                 {
                   "key": "artefactId",
                   "value": "123",
-                  "description": "ID of the artefact/document to view"
+                  "description": "ID of the Artifact/document to view"
                 }
               ]
             }
@@ -308,7 +308,7 @@
           "response": []
         },
         {
-          "name": "Delete Artefact",
+          "name": "Delete Artifact",
           "request": {
             "method": "GET",
             "header": [],
@@ -320,12 +320,12 @@
                 {
                   "key": "artefactId",
                   "value": "123",
-                  "description": "ID of the artefact to delete"
+                  "description": "ID of the Artifact to delete"
                 },
                 {
                   "key": "artefactName",
                   "value": "document.pdf",
-                  "description": "Name of the artefact to delete"
+                  "description": "Name of the Artifact to delete"
                 }
               ]
             }
@@ -1459,7 +1459,7 @@
       "key": "document_id",
       "value": "your-document-id",
       "type": "string",
-      "description": "Document/Artefact UUID"
+      "description": "Document/Artifact UUID"
     },
     {
       "key": "category_id",

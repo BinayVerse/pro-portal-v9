@@ -13,7 +13,7 @@
             <span class="text-white text-xl font-semibold">provento.ai</span>
           </NuxtLink>
           <p class="text-gray-400 text-sm mb-4">
-            Transform your artefacts into intelligent conversations with AI-powered artefact
+            Transform your artifacts into intelligent conversations with AI-powered Artifact
             chatting platform.
           </p>
         </div>

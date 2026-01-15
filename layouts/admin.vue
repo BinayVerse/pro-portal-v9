@@ -1,8 +1,16 @@
 <template>
   <div class="min-h-screen bg-black flex">
-    <!-- Sidebar (fixed) -->
+    <!-- Mobile menu overlay -->
+    <div
+      v-if="sidebarOpen && isMobile"
+      class="fixed inset-0 bg-black/50 z-30 md:hidden"
+      @click="sidebarOpen = false"
+    />
+
+    <!-- Sidebar (fixed on mobile, relative on desktop) -->
     <aside
-      class="fixed left-0 top-0 bottom-0 w-64 bg-dark-900 border-r border-dark-700 flex flex-col z-40 overflow-hidden"
+      class="fixed md:relative left-0 top-0 bottom-0 w-64 bg-dark-900 border-r border-dark-700 flex flex-col z-40 overflow-hidden transition-transform duration-300"
+      :class="isMobile ? { '-translate-x-full': !sidebarOpen, 'translate-x-0': sidebarOpen } : ''"
     >
       <!-- Logo -->
       <div class="h-16 flex items-center border-b border-dark-700 flex-none shrink-0">
@@ -86,7 +94,7 @@
                   : null
               "
             >
-              Artefacts
+              Artifacts
             </UButton>
 
             <UButton
@@ -240,22 +248,55 @@
           </template>
         </div>
       </nav>
+
+      <!-- Admin Footer (Mobile Only) -->
+      <div class="border-t border-dark-700 p-4 flex-none shrink-0 md:hidden">
+        <!-- Logo with text - Clickable -->
+        <NuxtLink
+          to="/"
+          class="flex items-center space-x-2 mb-3 justify-center hover:opacity-80 transition-opacity"
+          @click="sidebarOpen = false"
+        >
+          <img
+            src="https://cdn.builder.io/api/v1/image/assets%2Fb2a7382a9c9146babd538ccc60e9d0b5%2Fbddd43caf4614f99a3fbff498927abcc?format=webp&width=800"
+            alt="Provento Logo"
+            class="w-5 h-5"
+          />
+          <span class="text-gray-300 text-sm font-semibold">provento.ai</span>
+        </NuxtLink>
+        <!-- Copyright Text -->
+        <div class="text-gray-500 text-xs text-center leading-tight">
+          © 2026 provento.ai. All rights reserved.
+        </div>
+      </div>
     </aside>
 
     <!-- Main content area (offset for fixed sidebar) -->
-    <div class="ml-64 flex-1 flex flex-col min-h-0 pt-16">
+    <div class="flex-1 flex flex-col min-h-0 pt-16 w-full">
       <!-- Top header (fixed height) -->
       <header
-        class="fixed left-64 right-0 top-0 bg-dark-900 border-b border-dark-700 px-6 h-16 flex items-center z-50"
+        class="fixed top-0 right-0 bg-dark-900 border-b border-dark-700 px-3 md:px-6 h-16 flex items-center z-50 transition-all duration-300"
+        :style="{ left: isMobile ? '0' : '16rem' }"
       >
-        <div
-          class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 items-center w-full"
-          style="padding-left: 0"
-        >
-          <div class="flex items-center justify-between space-x-4">
-            <div class="flex items-center space-x-3">
+        <div class="items-center w-full flex-1" style="padding-left: 0">
+          <div class="flex items-center justify-between gap-2 md:gap-4 flex-1">
+            <!-- Mobile menu toggle button -->
+            <button
+              v-if="isMobile"
+              @click="sidebarOpen = !sidebarOpen"
+              class="md:hidden text-gray-300 hover:text-white p-2 -ml-2 flex-shrink-0"
+              aria-label="Toggle sidebar"
+            >
+              <UIcon
+                :name="sidebarOpen ? 'i-heroicons-x-mark' : 'i-heroicons-bars-3'"
+                class="w-6 h-6"
+              />
+            </button>
+
+            <div class="flex items-center flex-1 min-w-0">
+              <!-- Desktop Breadcrumb Layout (superadmin) -->
               <template v-if="auth.user?.role_id === 0 && selectedOrgName">
-                <nav aria-label="Breadcrumb" class="breadcrumb-container">
+                <nav aria-label="Breadcrumb" class="breadcrumb-container hidden md:block">
                   <ol class="flex items-center space-x-3 text-sm">
                     <li>
                       <button
@@ -278,7 +319,7 @@
                               stroke-linejoin="round"
                             />
                           </svg>
-                          <span class="hidden sm:inline">Back to Organizations</span>
+                          <span>Back to Organizations</span>
                         </span>
                       </button>
                     </li>
@@ -305,6 +346,36 @@
                     </li>
                   </ol>
                 </nav>
+
+                <!-- Mobile Org Display (superadmin) -->
+                <div class="md:hidden">
+                  <button
+                    @click="goBackToOrgs"
+                    class="text-gray-400 hover:text-gray-300 transition-colors"
+                    aria-label="Back to organizations"
+                  >
+                    <svg
+                      class="w-4 h-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M15 18L9 12L15 6"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </button>
+                  <div class="mt-0.5">
+                    <div class="text-xs text-gray-500">Organization</div>
+                    <div class="text-sm font-semibold text-white truncate">
+                      {{ selectedOrgName }}
+                    </div>
+                  </div>
+                </div>
               </template>
 
               <!-- If superadmin and no org selected, show only the green role tag -->
@@ -312,14 +383,39 @@
                 <span class="org-role-tag inline-block">Super Admin</span>
               </template>
 
-              <!-- For non-superadmin users show org/company name -->
+              <!-- For non-superadmin users show org/company name and plan (SaaS style) -->
               <template v-else>
-                <span class="engraved-org text-xl">{{ selectedOrgDisplay }} </span>
-                <span
-                  v-if="profileStore.userProfile?.plan_name"
-                  class="org-role-tag inline-block"
-                  >{{ profileStore.userProfile?.plan_name }}</span
-                >
+                <!-- Desktop Layout -->
+                <div class="hidden md:flex items-center space-x-3 flex-1">
+                  <span class="engraved-org text-lg font-semibold truncate">{{
+                    selectedOrgDisplay
+                  }}</span>
+                  <UBadge
+                    v-if="profileStore.userProfile?.plan_name"
+                    :color="isPlanExpired ? 'red' : 'green'"
+                    :ui="{ rounded: 'rounded-full' }"
+                    variant="subtle"
+                    class="flex-shrink-0"
+                    size="xs"
+                    >{{ profileStore.userProfile?.plan_name }}</UBadge
+                  >
+                </div>
+
+                <!-- Mobile Layout (SaaS style 2-line stack) -->
+                <div class="md:hidden flex-1 min-w-0">
+                  <div class="text-sm font-semibold text-white truncate">
+                    {{ selectedOrgDisplay }}
+                  </div>
+                  <div v-if="profileStore.userProfile?.plan_name" class="text-xs mt-0.5">
+                    <UBadge
+                      :color="isPlanExpired ? 'red' : 'green'"
+                      :ui="{ rounded: 'rounded-full' }"
+                      variant="subtle"
+                      size="xs"
+                      >{{ profileStore.userProfile?.plan_name }}</UBadge
+                    >
+                  </div>
+                </div>
               </template>
             </div>
 
@@ -353,7 +449,7 @@
       </div>
 
       <!-- Page content (scrollable) -->
-      <main class="p-6 bg-black overflow-auto flex-1 min-h-0">
+      <main class="p-4 md:p-6 bg-black overflow-auto flex-1 min-h-0">
         <slot />
       </main>
 
@@ -369,7 +465,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import ChatWidget from '~/components/chat/ChatWidget.vue'
 import { useAuthStore } from '~/stores/auth/index'
 import { useProfileStore } from '~/stores/profile/index'
@@ -380,10 +476,22 @@ import SubscriptionRequiredModal from '~/components/ui/SubscriptionRequiredModal
 const route = useRoute()
 const integrationsOpen = ref(true)
 const isClient = ref(false)
+const sidebarOpen = ref(false)
+const isMobile = ref(false)
 const auth = useAuthStore()
 const profileStore = useProfileStore()
 const superAdminStore = useSuperAdminStore()
 const subscriptionCheck = useSubscriptionCheck()
+
+const isPlanExpired = computed(() => {
+  const expiry = profileStore.userProfile?.plan_expiry
+  if (!expiry) return false
+
+  const expiryDate = new Date(expiry)
+  if (Number.isNaN(expiryDate.getTime())) return false
+
+  return expiryDate.getTime() < Date.now()
+})
 
 const checkAndShowSubscriptionModal = async () => {
   // Fetch org plan if user is authenticated
@@ -409,15 +517,40 @@ const checkAndShowSubscriptionModal = async () => {
   }
 }
 
+const checkMobileScreen = () => {
+  isMobile.value = typeof window !== 'undefined' && window.innerWidth < 768
+  if (!isMobile.value) {
+    sidebarOpen.value = true
+  }
+}
+
 onMounted(async () => {
   isClient.value = true
+  checkMobileScreen()
+
+  // Add resize listener for mobile detection
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', checkMobileScreen)
+  }
+
   await checkAndShowSubscriptionModal()
+})
+
+// Cleanup resize listener on unmount
+onUnmounted(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('resize', checkMobileScreen)
+  }
 })
 
 // Watch route changes to check subscription on every page navigation
 watch(
   () => route.name,
   async () => {
+    // Close sidebar on mobile when navigating
+    if (isMobile.value) {
+      sidebarOpen.value = false
+    }
     await checkAndShowSubscriptionModal()
   },
 )
@@ -576,7 +709,7 @@ const pageTitle = computed(() => {
   const titles: Record<string, string> = {
     'admin-dashboard': 'Dashboard',
     'admin-users': 'Users',
-    'admin-artefacts': 'Artefacts',
+    'admin-artefacts': 'Artifacts',
     'admin-analytics': 'Analytics',
     'admin-integrations': 'Integrations Overview',
     'admin-integrations-teams': 'Teams Integration',
@@ -615,12 +748,24 @@ const pageTitle = computed(() => {
   font-weight: 600;
 }
 
+.plan-active {
+  background: #10b981; /* green-500 */
+  border-color: rgba(16, 185, 129, 0.25);
+}
+
+.plan-expired {
+  background: #ef4444; /* red-500 */
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
 /* Breadcrumb styles */
 .breadcrumb-container {
-  padding: 6px 10px;
+  padding: 6px 8px;
   border-radius: 8px;
-  display: inline-block;
+  display: inline-flex;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .breadcrumb-back {
@@ -632,7 +777,9 @@ const pageTitle = computed(() => {
   border: 1px solid rgba(255, 255, 255, 0.03);
   padding: 6px 8px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 12px;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .breadcrumb-back:hover {
@@ -641,15 +788,39 @@ const pageTitle = computed(() => {
 }
 
 .breadcrumb-title {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   color: #f8fafc;
   margin-left: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+
+@media (max-width: 768px) {
+  .breadcrumb-title {
+    font-size: 14px;
+    max-width: 120px;
+  }
+
+  .breadcrumb-back {
+    padding: 4px 6px;
+    font-size: 11px;
+  }
 }
 
 /* Small spacing for breadcrumb items */
 .breadcrumb-container ol > li {
   display: inline-flex;
   align-items: center;
+  min-width: 0;
+}
+
+/* Mobile workspace info styling */
+@media (max-width: 768px) {
+  .engraved-org {
+    font-size: 0.95rem;
+  }
 }
 </style>

@@ -61,6 +61,25 @@
           </div>
         </section>
 
+        <!-- Organization Details section -->
+        <section class="space-y-4">
+          <div class="border-t border-gray-700" />
+          <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold">Organization Details</h3>
+          </div>
+          <div class="border-t border-gray-700" />
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p class="text-xs text-gray-400">Country</p>
+              <p class="mt-1">{{ (profile as any).org_country ? COUNTRY_OPTIONS.find(c => c.value === (profile as any).org_country)?.label || (profile as any).org_country : '-' }}</p>
+            </div>
+            <div>
+              <p class="text-xs text-gray-400">{{ (profile as any).org_country ? getCountryTaxInfo((profile as any).org_country)?.taxIdLabel || 'Tax ID' : 'Tax ID' }}</p>
+              <p class="mt-1">{{ (profile as any).org_tax_id || '-' }}</p>
+            </div>
+          </div>
+        </section>
+
         <!-- Billing section -->
         <section class="space-y-4">
           <div class="border-t border-gray-700" />
@@ -103,7 +122,7 @@
 
       <!-- EDIT MODE -->
       <div v-else>
-        <UForm :schema="schema" :state="state" @submit="onSubmit">
+        <UForm ref="formRef" :schema="schema" :state="state" @submit="onSubmit">
           <!-- Profile section -->
           <section class="space-y-4">
             <h3 class="text-lg font-semibold">Profile Details</h3>
@@ -151,6 +170,42 @@
                   :propPhone="state.contact_number || profile.contact_number"
                   placeholder="Your phone number"
                   defaultCountry="in"
+                />
+              </UFormGroup>
+            </div>
+          </section>
+
+          <!-- Organization Details section -->
+          <section class="space-y-4 mt-8">
+            <div class="border-t border-gray-700" />
+            <div class="flex items-center justify-between">
+              <h3 class="text-lg font-semibold">Organization Details</h3>
+            </div>
+            <div class="border-t border-gray-700" />
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <UFormGroup name="org_country" label="Country" required>
+                <USelect
+                  icon="i-heroicons-globe-alt"
+                  v-model="state.org_country"
+                  :options="COUNTRY_OPTIONS"
+                  placeholder="Select country"
+                  selectClass="custom-input"
+                  option-attribute="label"
+                />
+              </UFormGroup>
+
+              <UFormGroup
+                v-if="state.org_country && currentOrgCountryTaxInfo"
+                name="org_tax_id"
+                :label="currentOrgCountryTaxInfo.taxIdLabel"
+                required
+              >
+                <UInput
+                  v-model="state.org_tax_id"
+                  eager-validation
+                  inputClass="custom-input"
+                  :placeholder="currentOrgCountryTaxInfo.taxIdPlaceholder"
                 />
               </UFormGroup>
             </div>
@@ -261,6 +316,7 @@ import {
   getStateName,
   type CSCOption,
 } from '../../utils/csc'
+import { COUNTRY_OPTIONS, validateTaxId, getCountryTaxInfo } from '~/utils/countries'
 
 useHead({ title: 'Profile - Admin Dashboard - provento.ai' })
 definePageMeta({ layout: 'admin', middleware: 'auth' })
@@ -272,21 +328,39 @@ const isEditing = ref(false)
 const route = useRoute()
 const submitting = ref(false)
 const phoneRef = ref<any>(null)
+const formRef = ref<any>(null)
 
-// Zod schema: profile + billing fields (Option C)
-const schema = z.object({
-  name: z.string().min(3, 'Name must be at least 3 characters'),
-  email: z.string().email('Please enter a valid email'),
-  company: z.string().min(3, 'Company must be at least 3 characters'),
-  address_line1: z.string().min(3, 'Address line 1 is required'),
-  address_line2: z.string().optional(),
-  address_city: z.string().min(1, 'City is required'),
-  address_state: z.string().min(1, 'State is required'),
-  address_zip: z.string().min(2, 'Zip code is required'),
-  address_country: z.string().min(2, 'Country is required'),
-})
+// Zod schema: profile + organization + billing fields with country-specific tax ID messages
+const getSchema = (selectedOrgCountry: string) => {
+  const countryTaxInfo = getCountryTaxInfo(selectedOrgCountry)
+  const taxIdLabel = countryTaxInfo?.taxIdLabel || 'Tax ID'
+  const isOthersCountry = selectedOrgCountry === 'others'
 
-type Schema = z.output<typeof schema>
+  return z
+    .object({
+      name: z.string().min(3, 'Name must be at least 3 characters'),
+      email: z.string().email('Please enter a valid email'),
+      company: z.string().min(3, 'Company must be at least 3 characters'),
+      org_country: z.string().min(1, 'Country is required'),
+      org_tax_id: isOthersCountry
+        ? z.string().min(5, `${taxIdLabel} must be at least 5 characters`).max(50, 'Tax ID too long')
+        : z.string().min(1, `${taxIdLabel} is required`).max(50, 'Tax ID too long'),
+      address_line1: z.string().min(3, 'Address line 1 is required'),
+      address_line2: z.string().optional(),
+      address_city: z.string().min(1, 'City is required'),
+      address_state: z.string().min(1, 'State is required'),
+      address_zip: z.string().min(2, 'Zip code is required'),
+      address_country: z.string().min(2, 'Country is required'),
+    })
+    .refine((data) => validateTaxId(data.org_country, data.org_tax_id), {
+      message: `Invalid ${taxIdLabel} format`,
+      path: ['org_tax_id'],
+    })
+}
+
+const schema = computed(() => getSchema(state.org_country))
+
+type Schema = z.infer<ReturnType<typeof getSchema>>
 
 const state = reactive<
   Partial<
@@ -301,6 +375,8 @@ const state = reactive<
   email: '',
   company: '',
   contact_number: '',
+  org_country: 'usa',
+  org_tax_id: '',
   address_line1: '',
   address_line2: '',
   address_city: '',
@@ -309,10 +385,15 @@ const state = reactive<
   address_country: '',
 })
 
-// CSC dropdown options
+// CSC dropdown options for billing address
 const countryOptions = ref<CSCOption[]>([])
 const stateOptions = ref<CSCOption[]>([])
 const cityOptions = ref<CSCOption[]>([])
+
+// Organization country tax info
+const currentOrgCountryTaxInfo = computed(() => {
+  return getCountryTaxInfo(state.org_country)
+})
 
 const initials = computed(() => {
   const name =
@@ -361,6 +442,10 @@ const startEdit = async () => {
   state.email = profile.value.email || ''
   state.company = profile.value.company || ''
   state.contact_number = profile.value.contact_number || ''
+
+  // Organization fields
+  state.org_country = (profile.value as any).org_country || 'usa'
+  state.org_tax_id = (profile.value as any).org_tax_id || ''
 
   // Billing fields from backend
   const ba: any = profile.value.billing_address || {}
@@ -454,6 +539,15 @@ watch(
   },
 )
 
+// Clear tax ID and validation errors when organization country changes
+watch(
+  () => state.org_country,
+  () => {
+    state.org_tax_id = ''
+    formRef.value?.clear('org_tax_id')
+  },
+)
+
 // Single submit for profile + billing
 const onSubmit = async () => {
   submitting.value = true
@@ -475,6 +569,8 @@ const onSubmit = async () => {
       email: state.email,
       company: state.company,
       contact_number: state.contact_number,
+      org_country: state.org_country,
+      org_tax_id: state.org_tax_id,
       billing_address: {
         address_line1: state.address_line1,
         address_line2: state.address_line2,

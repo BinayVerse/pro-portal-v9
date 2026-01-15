@@ -27,7 +27,7 @@
       :categories-loading="categoriesLoading"
     />
 
-    <!-- Artefacts Table -->
+    <!-- Artifacts Table -->
     <ArtefactsTable
       :artefacts="filteredArtefacts"
       :summarizing-docs="artefactsStore.getSummarizingDocs"
@@ -82,13 +82,13 @@
       @cancel="cancelDeleteCategory"
     />
 
-    <!-- Confirm Delete Artefact Popup -->
+    <!-- Confirm Delete Artifact Popup -->
     <ConfirmPopup
       v-model:is-open="showConfirmDeleteArtefact"
-      title="Delete Artefact"
+      title="Delete Artifact"
       :message="`Are you sure you want to delete '${artefactToDelete?.name}'?`"
       details="This action cannot be undone. The artefact will be permanently removed from your storage and vector database."
-      confirm-text="Delete Artefact"
+      confirm-text="Delete Artifact"
       cancel-text="Cancel"
       type="danger"
       :loading="isDeletingArtefact"
@@ -96,13 +96,13 @@
       @cancel="cancelDeleteArtefact"
     />
 
-    <!-- Confirm Reprocess Artefact Popup -->
+    <!-- Confirm Reprocess Artifact Popup -->
     <ConfirmPopup
       v-model:is-open="showConfirmReprocessArtefact"
-      title="Reprocess Artefact"
+      title="Reprocess Artifact"
       :message="`Are you sure you want to reprocess '${artefactToReprocess?.name}'?`"
       details="This will regenerate the summary and analysis using the latest AI models. The current summary will be replaced."
-      confirm-text="Reprocess Artefact"
+      confirm-text="Reprocess Artifact"
       cancel-text="Cancel"
       type="info"
       :loading="isReprocessingArtefact"
@@ -110,7 +110,7 @@
       @cancel="cancelReprocessArtefact"
     />
 
-    <!-- Confirm Summarize Artefact Popup -->
+    <!-- Confirm Summarize Artifact Popup -->
     <ConfirmPopup
       v-model:is-open="showConfirmSummarizeArtefact"
       title="Summarize Document"
@@ -153,7 +153,16 @@ import { useArtefactsStore } from '~/stores/artefacts'
 import { useProfileStore } from '~/stores/profile'
 const profileStore = useProfileStore()
 
-const planDetails = computed(() => profileStore.getUserProfile?.plan_details || {})
+const planDetails = computed(() => profileStore.getUserProfile?.plan_details || null)
+
+// Compute safe limits from plan details
+const safePlanLimits = computed(() => {
+  if (!planDetails.value) return { artefacts: undefined, storage_limit_gb: undefined }
+  return {
+    artefacts: planDetails.value.artefacts,
+    storage_limit_gb: planDetails.value.storage_limit_gb,
+  }
+})
 
 // Reactive data
 const searchQuery = ref('')
@@ -300,10 +309,10 @@ const viewArtefact = (artefact: any) => {
 }
 
 const reprocessArtefact = async (artefact: any) => {
-  // Check if artefact can be reprocessed
+  // Check if artifact can be reprocessed
   if (!artefact.id) {
     const { showError } = useNotification()
-    showError('Cannot reprocess artefact - invalid artefact data')
+    showError('Cannot reprocess artifact - invalid artifact data')
     return
   }
 
@@ -355,7 +364,7 @@ const confirmDeleteArtefact = async () => {
       showError(result.message)
     }
   } catch (error: any) {
-    showError(error.message || 'Failed to delete artefact')
+    showError(error.message || 'Failed to delete artifact')
   } finally {
     isDeletingArtefact.value = false
     showConfirmDeleteArtefact.value = false
@@ -388,7 +397,7 @@ const confirmReprocessArtefact = async () => {
       showError(result.message)
     }
   } catch (error: any) {
-    showError(error.message || 'Failed to reprocess artefact')
+    showError(error.message || 'Failed to reprocess artifact')
   } finally {
     isReprocessingArtefact.value = false
     showConfirmReprocessArtefact.value = false
@@ -403,12 +412,12 @@ const cancelReprocessArtefact = () => {
   isReprocessingArtefact.value = false
 }
 
-// Summarize artefact handler
+// Summarize artifact handler
 const summarizeArtefact = async (artefact: any) => {
-  // Check if artefact can be summarized
+  // Check if artifact can be summarized
   if (!artefact.id) {
     const { showError } = useNotification()
-    showError('Cannot summarize artefact - invalid artefact data')
+    showError('Cannot summarize artifact - invalid artifact data')
     return
   }
 
@@ -487,7 +496,7 @@ const viewSummary = (artefact: any) => {
 const downloadArtefact = async (artefact: any) => {
   if (!artefact || !artefact.id) {
     const { showError } = useNotification()
-    showError('Cannot download artefact - invalid artefact data')
+    showError('Cannot download artifact - invalid artifact data')
     return
   }
 
@@ -657,47 +666,58 @@ const storageUsageValue = computed(() => {
     stats.value?.totalSizeBytes ??
       (typeof stats.value?.totalSizeBytes === 'number' ? stats.value?.totalSizeBytes : 0),
   )
-  const limitGB = (planDetails.value as any)?.storage_limit_gb || 0
-  const percentage = limitGB > 0 ? (currentGB / limitGB) * 100 : 0
+  const hasPlan = planDetails.value && Object.keys(planDetails.value).length > 0
+  const limitGB = hasPlan ? ((planDetails.value as any)?.storage_limit_gb ?? 0) : null
+  const percentage = limitGB && limitGB > 0 ? (currentGB / limitGB) * 100 : 0
 
   return {
     current: currentGB,
-    limit: limitGB,
+    limit: limitGB ?? 0,
     percentage: percentage,
-    display: limitGB > 0 ? `${currentGB.toFixed(2)}GB / ${limitGB}GB` : `${currentGB.toFixed(2)}GB`,
+    display:
+      hasPlan && (limitGB === 0 || limitGB === -1)
+        ? `${currentGB.toFixed(2)}GB / Unlimited`
+        : `${currentGB.toFixed(2)}GB${limitGB && limitGB > 0 ? ` / ${limitGB}GB` : ''}`,
   }
 })
 
 // Aggregated usage alert data (same structure as analytics)
 const usageAlertData = computed(() => {
   const metrics: any[] = []
+  const hasPlan = planDetails.value && Object.keys(planDetails.value).length > 0
 
-  // Artefacts limit
-  if ((planDetails.value as any)?.artefacts > 0) {
-    const current = totalArtefacts.value
-    const limit = (planDetails.value as any).artefacts
-    const percentage = limit > 0 ? (current / limit) * 100 : 0
+  // Artifacts limit (only show if plan exists and limit is > 0)
+  if (hasPlan) {
+    const artefactsLimit = (planDetails.value as any)?.artefacts ?? 0
+    if (artefactsLimit > 0) {
+      const current = totalArtefacts.value
+      const limit = artefactsLimit
+      const percentage = limit > 0 ? (current / limit) * 100 : 0
 
-    metrics.push({
-      name: 'Artefacts',
-      current,
-      limit,
-      percentage: percentage,
-    })
+      metrics.push({
+        name: 'Artifacts',
+        current,
+        limit,
+        percentage: percentage,
+      })
+    }
   }
 
-  // Storage limit
-  if ((planDetails.value as any)?.storage_limit_gb > 0) {
-    const current = storageUsageValue.value.current
-    const limit = storageUsageValue.value.limit
-    const percentage = storageUsageValue.value.percentage
+  // Storage limit (only show if plan exists and limit is > 0)
+  if (hasPlan) {
+    const storageLimit = (planDetails.value as any)?.storage_limit_gb ?? 0
+    if (storageLimit > 0) {
+      const current = storageUsageValue.value.current
+      const limit = storageLimit
+      const percentage = limit > 0 ? (current / limit) * 100 : 0
 
-    metrics.push({
-      name: 'Storage',
-      current,
-      limit,
-      percentage,
-    })
+      metrics.push({
+        name: 'Storage',
+        current,
+        limit,
+        percentage,
+      })
+    }
   }
 
   const exceededMetrics = metrics.filter((m) => m.percentage >= 100)
@@ -816,6 +836,6 @@ onUnmounted(() => {
 })
 
 useHead({
-  title: 'Artefact Management - Admin Dashboard - provento.ai',
+  title: 'Artifact Management - Admin Dashboard - provento.ai',
 })
 </script>

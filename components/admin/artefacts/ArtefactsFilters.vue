@@ -6,7 +6,7 @@
         <UInput
           :model-value="searchQuery"
           @update:model-value="$emit('update:searchQuery', $event)"
-          placeholder="Search artefacts..."
+          placeholder="Search artifacts..."
           size="lg"
           icon="i-heroicons-magnifying-glass"
         />

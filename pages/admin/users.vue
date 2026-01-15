@@ -1,22 +1,23 @@
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div class="flex items-center justify-between" style="margin-top: 0">
-      <div>
-        <h1 class="text-2xl font-bold text-white mb-2">User Management</h1>
-        <p class="text-gray-400">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0" style="margin-top: 0">
+      <div class="w-full sm:w-auto">
+        <h1 class="text-xl sm:text-2xl font-bold text-white mb-2">User Management</h1>
+        <p class="text-sm sm:text-base text-gray-400">
           Manage user accounts, roles, and permissions across your organization.
         </p>
       </div>
-      <div class="flex items-center space-x-3">
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
         <button
           @click="!disableUserActions && openBulkUplaod()"
           :disabled="disableUserActions"
           :class="[
             baseButtonClass,
             'bg-dark-800 text-white hover:bg-dark-700',
-            'flex items-center space-x-2',
+            'flex items-center justify-center sm:justify-start space-x-2',
             disableUserActions ? 'opacity-50 cursor-not-allowed' : '',
+            'flex-1 sm:flex-auto',
           ]"
         >
           <UIcon name="i-heroicons-cloud-arrow-up" class="w-4 h-4" />
@@ -28,12 +29,13 @@
           :class="[
             baseButtonClass,
             'bg-blue-600 hover:bg-blue-700 text-white',
-            'flex items-center space-x-2',
+            'flex items-center justify-center sm:justify-start space-x-2',
             disableUserActions ? 'opacity-50 cursor-not-allowed' : '',
+            'flex-1 sm:flex-auto',
           ]"
         >
           <UIcon name="i-heroicons-plus" class="w-4 h-4" />
-          <span>Add User</span>
+          <span class="truncate">Add User</span>
         </button>
       </div>
     </div>
@@ -41,14 +43,19 @@
     <PlanUpgradeAlert :data="usageAlertData" @upgrade="goToPlans" />
 
     <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
       <!-- Total Users -->
-      <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
+      <div class="bg-dark-800 rounded-lg p-4 sm:p-6 border border-dark-700">
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Total Users</p>
             <p :class="`text-lg font-bold mt-2 ${usersTextColor}`">
-              {{ stats.totalUsers }} / {{ usersLimit }}
+              {{ stats.totalUsers }} /
+              {{
+                profileStore.getUserProfile?.plan_details && (usersLimit === 0 || usersLimit === -1)
+                  ? 'Unlimited'
+                  : usersLimit || 0
+              }}
             </p>
           </div>
           <div class="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
@@ -58,7 +65,7 @@
       </div>
 
       <!-- Active Users -->
-      <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
+      <div class="bg-dark-800 rounded-lg p-4 sm:p-6 border border-dark-700">
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Active Users</p>
@@ -71,7 +78,7 @@
       </div>
 
       <!-- Admins -->
-      <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
+      <div class="bg-dark-800 rounded-lg p-4 sm:p-6 border border-dark-700">
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Admins</p>
@@ -84,7 +91,7 @@
       </div>
 
       <!-- New This Month -->
-      <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
+      <div class="bg-dark-800 rounded-lg p-4 sm:p-6 border border-dark-700">
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">New This Month</p>

@@ -147,9 +147,9 @@ export default defineEventHandler(async (event) => {
         artefacts: formattedDocuments,
         stats: stats
       },
-      message: formattedDocuments.length > 0 ? 'Artefacts fetched successfully' : 'No artefacts found',
+      message: formattedDocuments.length > 0 ? 'Artefacts fetched successfully' : 'No artifacts found',
     }
   } catch (err: any) {
-    throw new CustomError(err.message || 'Failed to fetch artefacts', 500)
+    throw new CustomError(err.message || 'Failed to fetch artifacts', 500)
   }
 })

@@ -724,12 +724,17 @@ const categoryOptions = computed(() => {
 
 // Compute storage limit from plan
 const storageLimitGb = computed(() => {
-  return orgStore.currentPlan?.plan?.storage_limit_gb || 0
+  return orgStore.currentPlan?.plan?.storage_limit_gb ?? 0
+})
+
+// Check if user has an active plan
+const hasPlan = computed(() => {
+  return orgStore.currentPlan?.plan !== null && orgStore.currentPlan?.plan !== undefined
 })
 
 // Helper function to format file size
 const formatStorageSize = (gb: number): string => {
-  if (gb === 0) return 'Unlimited'
+  if (gb === 0 || gb === -1 || gb === null) return 'Unlimited'
   return `${gb} GB`
 }
 
@@ -791,12 +796,18 @@ const setFile = (file: File) => {
       const currentStats = artefactsStore.getStats
 
       usedStorageDisplay.value = formatFileSize(currentStats.totalSizeBytes || 0)
-      totalStorageDisplay.value = formatStorageAuto(storageLimitGb.value)
+      totalStorageDisplay.value =
+        hasPlan.value && (storageLimitGb.value === 0 || storageLimitGb.value === -1)
+          ? 'Unlimited'
+          : formatStorageAuto(storageLimitGb.value)
 
       // ✅ FIX: Correct available storage
       const usedGB = bytesToGb(currentStats.totalSizeBytes || 0)
       const availableGB = Math.max(0, storageLimitGb.value - usedGB)
-      availableStorageDisplay.value = formatStorageAuto(availableGB)
+      availableStorageDisplay.value =
+        hasPlan.value && (storageLimitGb.value === 0 || storageLimitGb.value === -1)
+          ? 'Unlimited'
+          : formatStorageAuto(availableGB)
 
       showSizeLimitModal.value = true
       return
@@ -814,8 +825,14 @@ const setFile = (file: File) => {
         maxFileSizeDisplay.value = '20 MB'
         exceededType.value = 'storage'
         usedStorageDisplay.value = formatFileSize(currentStats.totalSizeBytes || 0)
-        totalStorageDisplay.value = formatStorageAuto(storageLimitGb.value)
-        availableStorageDisplay.value = formatStorageAuto(Math.max(0, availableGb))
+        totalStorageDisplay.value =
+          hasPlan.value && (storageLimitGb.value === 0 || storageLimitGb.value === -1)
+            ? 'Unlimited'
+            : formatStorageAuto(storageLimitGb.value)
+        availableStorageDisplay.value =
+          hasPlan.value && (storageLimitGb.value === 0 || storageLimitGb.value === -1)
+            ? 'Unlimited'
+            : formatStorageAuto(Math.max(0, availableGb))
 
         showSizeLimitModal.value = true
         return
@@ -885,6 +902,9 @@ const formatFileSize = (bytes: number) => {
 }
 
 const formatStorageAuto = (gb: number): string => {
+  // Handle unlimited storage (0 or -1)
+  if (gb === 0 || gb === -1) return 'Unlimited'
+
   const bytes = gb * 1024 * 1024 * 1024 // Convert GB → Bytes
 
   if (bytes < 1024) {
@@ -961,7 +981,7 @@ const performUpload = async (formData: FormData, orgId?: string | null) => {
       return
     }
 
-    // Emit the uploaded artefact data
+    // Emit the uploaded artifact data
     emit('fileUploaded', result.data)
 
     // Reset form
@@ -1090,7 +1110,7 @@ const uploadFromGoogleDrive = async () => {
       return
     }
 
-    // Create artefact objects from uploaded files
+    // Create artifact objects from uploaded files
     const newArtefacts = result.files.map((file) => ({
       id: Date.now() + Math.random(),
       name: file.name,
@@ -1182,7 +1202,7 @@ const handleGoogleOAuthSignIn = async () => {
         )
 
         if (result.success) {
-          // Create artefact objects from uploaded files
+          // Create artifact objects from uploaded files
           const newArtefacts = result.files.map((file) => ({
             id: Date.now() + Math.random(),
             name: file.name,

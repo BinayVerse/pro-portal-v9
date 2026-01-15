@@ -18,6 +18,7 @@ export default defineNuxtConfig({
       microsoftRedirectUri: process.env.NUXT_PUBLIC_MICROSOFT_REDIRECT_URI,
       chargebeePublishableKey: process.env.NUXT_PUBLIC_CHARGEBEE_PUBLISHABLE_KEY,
       apiBase: process.env.API_BASE_URL || '/api',
+      awsMarketplaceLink: process.env.NUXT_PUBLIC_AWS_MARKETPLACE_LINK || '',
     },
     dbUser: process.env.NUXT_DB_USER,
     dbPassword: process.env.NUXT_DB_PASSWORD,
@@ -35,6 +36,7 @@ export default defineNuxtConfig({
     awsAccessKeyId: process.env.NUXT_AWS_ACCESS_KEY_ID,
     awsSecretAccessKey: process.env.NUXT_AWS_SECRET_ACCESS_KEY,
     awsBucketName: process.env.NUXT_AWS_BUCKET_NAME,
+    featuresAwsBucketName: process.env.NUXT_FEATURES_AWS_BUCKET_NAME,
     awsFolderName: process.env.NUXT_AWS_FOLDER_NAME,
     // Chargebee
     chargebeeSite: process.env.NUXT_CHARGEBEE_SITE,
@@ -54,10 +56,7 @@ export default defineNuxtConfig({
 
   vite: {
     ssr: { external: ['@headlessui/vue'] },
-    optimizeDeps: { exclude: ['@headlessui/vue'] },
-    server: {
-      allowedHosts: ['eufemia-umbiliform-ardelle.ngrok-free.dev']
-    }
+    optimizeDeps: { exclude: ['@headlessui/vue'] }
   },
 
   build: {

@@ -14,7 +14,7 @@ export const useArtefactsStore = defineStore('artefacts', {
     newCategory: null as DocumentCategory | null,
     isCategoryLoading: false,
     categoryError: null as string | null,
-    // Artefacts list and stats
+    // Artifacts list and stats
     artefacts: [] as any[],
     previousArtefacts: [] as any[], // Store previous state to detect changes
     stats: {
@@ -42,7 +42,7 @@ export const useArtefactsStore = defineStore('artefacts', {
     getCategoryNames: (state): string[] => (state.categories || []).map(cat => cat?.name || '').filter(name => name),
     isCategoryLoadingState: (state): boolean => state.isCategoryLoading,
     getCategoryError: (state): string | null => state.categoryError,
-    // Artefacts getters
+    // Artifacts getters
     getArtefacts: (state): any[] => state.artefacts || [],
     getStats: (state) => state.stats || {
       totalArtefacts: 0,
@@ -154,7 +154,7 @@ export const useArtefactsStore = defineStore('artefacts', {
         return {
           success: false,
           files: [],
-          message: handleError(error, 'Failed to upload Google Drive files')
+          message: handleError(error, 'Failed to upload Google Drive files', true)
         }
       } finally {
         this.isUploadingGoogleDrive = false
@@ -206,7 +206,7 @@ export const useArtefactsStore = defineStore('artefacts', {
         return {
           success: false,
           data: null,
-          message: handleError(error, 'Failed to upload artefact')
+          message: handleError(error, 'Failed to upload artifact', true)
         }
       }
     },
@@ -356,7 +356,7 @@ export const useArtefactsStore = defineStore('artefacts', {
       this.categoryError = null
     },
 
-    // Artefacts Actions
+    // Artifacts Actions
     async fetchArtefacts(orgId?: string | null) {
       this.isLoadingArtefacts = true
       this.artefactsError = null
@@ -465,7 +465,7 @@ export const useArtefactsStore = defineStore('artefacts', {
       this.artefactsError = null
     },
 
-    // View artefact method
+    // View artifact method
     async viewArtefact(artefactId: number, orgId?: string | null) {
       try {
         const token = process.client ? localStorage.getItem('authToken') : null
@@ -522,7 +522,7 @@ export const useArtefactsStore = defineStore('artefacts', {
       }
     },
 
-    // Summarize artefact method
+    // Summarize artifact method
     async summarizeArtefact(artefactId: number, orgId?: string | null) {
       try {
         const token = process.client ? localStorage.getItem('authToken') : null
@@ -564,7 +564,7 @@ export const useArtefactsStore = defineStore('artefacts', {
       }
     },
 
-    // Reprocess artefact method
+    // Reprocess artifact method
     async reprocessArtefact(artefactId: number, orgId?: string | null) {
       try {
         const token = process.client ? localStorage.getItem('authToken') : null
@@ -591,7 +591,7 @@ export const useArtefactsStore = defineStore('artefacts', {
 
         return {
           success: true,
-          message: response.message || 'Artefact reprocessing started successfully'
+          message: response.message || 'Artifact reprocessing started successfully'
         }
       } catch (error: any) {
         // Handle authentication errors using shared handler
@@ -601,12 +601,12 @@ export const useArtefactsStore = defineStore('artefacts', {
 
         return {
           success: false,
-          message: handleError(error, 'Failed to reprocess artefact')
+          message: handleError(error, 'Failed to reprocess artifact')
         }
       }
     },
 
-    // Delete artefact method
+    // Delete artifact method
     async deleteArtefact(artefactId: number, artefactName: string, orgId?: string | null) {
       try {
         const token = process.client ? localStorage.getItem('authToken') : null
@@ -637,7 +637,7 @@ export const useArtefactsStore = defineStore('artefacts', {
 
         return {
           success: true,
-          message: response.message || 'Artefact deleted successfully'
+          message: response.message || 'Artifact deleted successfully'
         }
       } catch (error: any) {
         // Handle authentication errors using shared handler
@@ -647,7 +647,7 @@ export const useArtefactsStore = defineStore('artefacts', {
 
         return {
           success: false,
-          message: handleError(error, 'Failed to delete artefact')
+          message: handleError(error, 'Failed to delete artifact')
         }
       }
     },
@@ -822,7 +822,7 @@ export const useArtefactsStore = defineStore('artefacts', {
           this.summarizingDocs.add(doc.id)
           this.attemptedSummarizations.add(doc.id)
 
-          // Mark artefact as summarizing for immediate UI feedback
+          // Mark artifact as summarizing for immediate UI feedback
           const _idx = this.artefacts.findIndex(a => a.id === doc.id)
           if (_idx !== -1) {
             this.artefacts[_idx].isSummarizing = true
@@ -843,7 +843,7 @@ export const useArtefactsStore = defineStore('artefacts', {
             this.summarizingDocs.delete(doc.id)
             // Force reactivity update
             this.summarizingDocs = new Set(this.summarizingDocs)
-            // Clear artefact isSummarizing flag
+            // Clear artifact isSummarizing flag
             const _idx2 = this.artefacts.findIndex(a => a.id === doc.id)
             if (_idx2 !== -1) {
               this.artefacts[_idx2].isSummarizing = false

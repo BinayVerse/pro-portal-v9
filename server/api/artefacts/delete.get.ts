@@ -32,7 +32,7 @@ export default defineEventHandler(async (event) => {
   const artefactName = queryParams.artefactName
 
   if (!artefactId && !artefactName) {
-    throw new CustomError('Artefact ID or name is required', 400)
+    throw new CustomError('Artifact ID or name is required', 400)
   }
 
   try {
@@ -86,7 +86,7 @@ export default defineEventHandler(async (event) => {
     const docResult = await query(checkDocQuery, queryParamsArr)
 
     if (!docResult.rows.length) {
-      throw new CustomError('Artefact not found in database', 404)
+      throw new CustomError('Artifact not found in database', 404)
     }
 
     const documentId = docResult.rows[0].id
@@ -142,7 +142,7 @@ export default defineEventHandler(async (event) => {
     return {
       statusCode: 200,
       status: 'success',
-      message: 'Artefact deleted successfully',
+      message: 'Artifact deleted successfully',
       data: {
         id: documentId,
         name: documentName
@@ -157,12 +157,12 @@ export default defineEventHandler(async (event) => {
         message: err.message,
       }
     }
-    
+
     setResponseStatus(event, 500)
     return {
       statusCode: 500,
       status: 'error',
-      message: 'Failed to delete artefact',
+      message: 'Failed to delete artifact',
     }
   }
 })

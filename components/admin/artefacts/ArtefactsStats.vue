@@ -14,9 +14,10 @@
 
       <div v-else class="flex items-center justify-between">
         <div>
-          <p class="text-gray-400 text-sm font-medium">Total Artefacts</p>
+          <p class="text-gray-400 text-sm font-medium">Total Artifacts</p>
           <p :class="`text-lg font-bold mt-2 ${artefactsTextColor}`">
-            {{ props.totalArtefacts }} / {{ props.artefactsLimit }}
+            {{ props.totalArtefacts }} /
+            {{ props.artefactsLimit === -1 ? 'Unlimited' : (props.artefactsLimit ?? 0) }}
           </p>
         </div>
 
@@ -92,7 +93,14 @@
         <div>
           <p class="text-gray-400 text-sm font-medium">Total Size</p>
           <p :class="`text-lg font-bold mt-2 ${storageTextColor}`">
-            {{ props.totalSize }} / {{ props.storageLimit }} GB
+            {{ props.totalSize }} /
+            {{
+              props.storageLimit === -1
+                ? 'Unlimited'
+                : props.storageLimit
+                  ? props.storageLimit + ' GB'
+                  : '0 GB'
+            }}
           </p>
         </div>
 
@@ -105,6 +113,8 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+
 const props = defineProps<{
   totalArtefacts: number
   processedArtefacts: number
@@ -124,7 +134,8 @@ const toGB = (value: string) => {
 }
 
 const getUsageColor = (current: number, limit?: number) => {
-  if (!limit) return 'text-white'
+  // For unlimited or null limits (0, -1, undefined, null), show normal white text
+  if (!limit || limit === 0 || limit === -1) return 'text-white'
   const percent = (current / limit) * 100
   if (percent >= 100) return 'text-red-400'
   if (percent >= 80) return 'text-orange-400'

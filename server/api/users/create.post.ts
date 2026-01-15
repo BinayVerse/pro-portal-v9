@@ -12,6 +12,7 @@ import {
 } from '../helper'
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { checkUserLimitExceeded } from '../../utils/usageLimits'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -113,6 +114,13 @@ export default defineEventHandler(async (event) => {
         409,
       )
     }
+  }
+
+  // Check user limit for organization
+  const userLimitCheck = await checkUserLimitExceeded(orgDetail.org_id, 1)
+  if (userLimitCheck.exceeded) {
+    setResponseStatus(event, 403)
+    throw new CustomError(userLimitCheck.message, 403)
   }
 
   // Prepare insert query

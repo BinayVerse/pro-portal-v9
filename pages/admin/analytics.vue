@@ -73,11 +73,11 @@
           </div>
         </div>
 
-        <!-- Artefacts Created -->
+        <!-- Artifacts Created -->
         <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
           <div class="flex items-center justify-between">
             <div>
-              <p class="text-gray-400 text-sm font-medium">Artefacts Created</p>
+              <p class="text-gray-400 text-sm font-medium">Artifacts Created</p>
               <p
                 :class="`text-lg font-bold mt-2 cursor-pointer ${artefactsTextColor}`"
                 @click="showOrganizationDocuments"
@@ -532,17 +532,18 @@ const tokensTextColor = computed(() => {
 // Usage metrics computed properties
 const usersUsageValue = computed(() => {
   const currentUsers = Number((analyticsStore.organizationDetails as any)?.total_users || 0)
-  const limit = planDetails.value?.users || 0
-  const percentage = limit > 0 ? (currentUsers / limit) * 100 : 0
+  const limit = planDetails.value?.users ?? null
+  const hasPlan = planDetails.value !== null
+  const percentage = limit && limit > 0 ? (currentUsers / limit) * 100 : 0
 
   const result = {
     current: currentUsers,
-    limit,
+    limit: limit ?? 0,
     percentage: percentage,
     display:
-      limit > 0
-        ? `${currentUsers.toLocaleString()} / ${limit.toLocaleString()}`
-        : currentUsers.toLocaleString(),
+      hasPlan && (limit === 0 || limit === -1)
+        ? `${currentUsers.toLocaleString()} / Unlimited`
+        : `${currentUsers.toLocaleString()} / ${limit ?? 0}`,
   }
 
   return result
@@ -550,49 +551,49 @@ const usersUsageValue = computed(() => {
 
 const queriesUsageValue = computed(() => {
   const current = totalQueriesCount.value || 0
-  const limit = planDetails.value?.limit_requests || 0
-  const percentage = limit > 0 ? (current / limit) * 100 : 0
+  const limit = planDetails.value?.limit_requests ?? null
+  const hasPlan = planDetails.value !== null
+  const percentage = limit && limit > 0 ? (current / limit) * 100 : 0
 
   return {
     current,
-    limit,
+    limit: limit ?? 0,
     percentage: percentage,
     display:
-      limit > 0
-        ? `${formatCompactNumber(current)} / ${formatCompactNumber(limit)}`
-        : formatCompactNumber(current),
+      hasPlan && (limit === 0 || limit === -1)
+        ? `${formatCompactNumber(current)} / Unlimited`
+        : `${formatCompactNumber(current)} / ${formatCompactNumber(limit ?? 0)}`,
   }
 })
 
 const artefactsUsageValue = computed(() => {
   const current = Number((analyticsStore.organizationDetails as any)?.docs_uploaded || 0)
-  const limit = planDetails.value?.artefacts || 0
-  const percentage = limit > 0 ? (current / limit) * 100 : 0
+  const limit = planDetails.value?.artefacts ?? null
+  const hasPlan = planDetails.value !== null
+  const percentage = limit && limit > 0 ? (current / limit) * 100 : 0
 
   return {
     current,
-    limit,
+    limit: limit ?? 0,
     percentage: percentage,
     display:
-      limit > 0
-        ? `${current.toLocaleString()} / ${limit.toLocaleString()}`
-        : current.toLocaleString(),
+      hasPlan && (limit === 0 || limit === -1)
+        ? `${current.toLocaleString()} / Unlimited`
+        : `${current.toLocaleString()} / ${limit ?? 0}`,
   }
 })
 
 const tokensUsageValue = computed(() => {
   const current = totalTokens.value || 0
-  const limit = (planDetails.value?.metadata?.total_tokens as number) || 0
-  const percentage = limit > 0 ? (current / limit) * 100 : 0
+  const hasPlan = planDetails.value !== null
+  const limit = hasPlan ? ((planDetails.value?.metadata?.total_tokens as number) ?? null) : null
+  const percentage = limit && limit > 0 ? (current / limit) * 100 : 0
 
   return {
     current,
-    limit,
+    limit: limit ?? 0,
     percentage: percentage,
-    display:
-      limit > 0
-        ? `${formatCompactNumber(current)} / ${formatCompactNumber(limit)}`
-        : formatCompactNumber(current),
+    display: `${formatCompactNumber(current)}`,
   }
 })
 
@@ -611,7 +612,7 @@ const usageAlertData = computed(() => {
 
   if (queriesUsageValue.value.limit > 0) {
     metrics.push({
-      name: 'Queries',
+      name: 'Total Queries',
       current: queriesUsageValue.value.current,
       limit: queriesUsageValue.value.limit,
       percentage: queriesUsageValue.value.percentage,
@@ -620,7 +621,7 @@ const usageAlertData = computed(() => {
 
   if (artefactsUsageValue.value.limit > 0) {
     metrics.push({
-      name: 'Artefacts',
+      name: 'Artifacts',
       current: artefactsUsageValue.value.current,
       limit: artefactsUsageValue.value.limit,
       percentage: artefactsUsageValue.value.percentage,
@@ -1081,7 +1082,7 @@ const exportReport = () => {
     // Organization Summary
     rows.push(['--- Organization Summary ---'])
     rows.push(['Active Users', String(orgDetails?.total_users || 0)])
-    rows.push(['Artefacts Created', String(orgDetails?.docs_uploaded || 0)])
+    rows.push(['Artifacts Created', String(orgDetails?.docs_uploaded || 0)])
     rows.push(['Total Tokens', String(totalTokens.value || 0)])
     rows.push(['Total Queries', String(totalQueriesCount.value || 0)])
 

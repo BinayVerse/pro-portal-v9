@@ -48,6 +48,17 @@ export default defineEventHandler(async (event) => {
     let orgId: string;
     let isCompanyExists = !existingCompany?.rows?.length;
 
+    // Check for duplicate org_tax_id if provided
+    if (params.taxId) {
+      const existingTaxId = await query(
+        'SELECT org_id FROM organizations WHERE org_tax_id = $1',
+        [params.taxId]
+      );
+      if (existingTaxId?.rows?.length) {
+        throw new CustomError('This organization already exists in the system. Please contact admin for access.', 409);
+      }
+    }
+
     const existingUserByEmail = await query('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [params.email]);
     if (existingUserByEmail?.rows?.length) {
       throw new CustomError('User is already registered with this email', 409);
@@ -73,8 +84,8 @@ export default defineEventHandler(async (event) => {
 
     if (isCompanyExists) {
       const newOrg = await query(
-        'INSERT INTO organizations (org_name, source) VALUES ($1, $2) RETURNING org_id',
-        [params.companyName, params.registrationToken ? 'aws' : 'website']
+        'INSERT INTO organizations (org_name, org_country, org_tax_id, source) VALUES ($1, $2, $3, $4) RETURNING org_id',
+        [params.companyName, params.country || 'usa', params.taxId || null, params.registrationToken ? 'aws' : 'website']
       );
       orgId = newOrg.rows[0].org_id;
     } else {

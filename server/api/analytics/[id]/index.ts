@@ -74,8 +74,6 @@ export default defineEventHandler(async (event) => {
         p.duration,
         p.users AS plan_users,
         p.limit_requests,
-        p.add_ons_unlimited_requests,
-        p.add_ons_price,
         p.features
     FROM organizations o
         LEFT JOIN users u ON o.org_id = u.org_id AND u.role_id IS DISTINCT FROM '0'
@@ -411,9 +409,9 @@ export default defineEventHandler(async (event) => {
                         duration: organizationDetails.duration,
                         users: organizationDetails.plan_users,
                         limit_requests: organizationDetails.limit_requests,
-                        add_ons_unlimited_requests:
-                            organizationDetails.add_ons_unlimited_requests,
-                        add_ons_price: organizationDetails.add_ons_price,
+                        // add_ons_unlimited_requests:
+                        //     organizationDetails.add_ons_unlimited_requests,
+                        // add_ons_price: organizationDetails.add_ons_price,
                         features: organizationDetails.features,
                     },
                 ]

@@ -13,11 +13,11 @@ export default defineEventHandler(async (event) => {
 
     try {
         const params = await readBody(event);
-        const token = event.node.req.headers['authorization']?.split(' ')[1];
+    const token = event.node.req.headers['authorization']?.split(' ')[1];
 
-        if (!token) throw new CustomError('Unauthorized: No token provided', 401);
+    if (!token) throw new CustomError('Unauthorized: No token provided', 401);
 
-        const { user_id, name, email, company, contact_number, billing_address } = params;
+    const { user_id, name, email, company, contact_number, org_country, org_tax_id, billing_address } = params;
 
         /** ------------------------------------------------------------------
          * Detect Billing-Only Update
@@ -173,6 +173,48 @@ export default defineEventHandler(async (event) => {
         if (!isBillingOnly && name && name !== currentUser.name) {
             updates.push(`name = $${updates.length + 1}`);
             values.push(name);
+        }
+
+        /** ------------------------------------------------------------------
+         * ORGANIZATION DETAILS UPDATE (ORG_COUNTRY & ORG_TAX_ID)
+         * ------------------------------------------------------------------ */
+        if (!isBillingOnly && (org_country || org_tax_id)) {
+            const targetOrgId = orgId || currentUser.org_id;
+            if (targetOrgId) {
+                // Check for duplicate org_tax_id if provided
+                if (org_tax_id) {
+                    const existingTaxId = await query(
+                        `SELECT org_id FROM organizations WHERE org_tax_id = $1 AND org_id != $2`,
+                        [org_tax_id, targetOrgId]
+                    );
+                    if (existingTaxId?.rows?.length) {
+                        throw new CustomError('This organization already exists in the system. Please contact admin for access.', 409);
+                    }
+                }
+
+                const orgUpdates: string[] = [];
+                const orgValues: any[] = [];
+
+                if (org_country) {
+                    orgUpdates.push(`org_country = $${orgUpdates.length + 1}`);
+                    orgValues.push(org_country);
+                }
+
+                if (org_tax_id) {
+                    orgUpdates.push(`org_tax_id = $${orgUpdates.length + 1}`);
+                    orgValues.push(org_tax_id);
+                }
+
+                if (orgUpdates.length > 0) {
+                    orgUpdates.push(`updated_at = CURRENT_TIMESTAMP`);
+                    orgValues.push(targetOrgId);
+
+                    await query(
+                        `UPDATE organizations SET ${orgUpdates.join(', ')} WHERE org_id = $${orgValues.length}`,
+                        orgValues
+                    );
+                }
+            }
         }
 
         /** ------------------------------------------------------------------

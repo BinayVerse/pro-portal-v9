@@ -1,9 +1,9 @@
 <template>
   <div class="flex items-center justify-between">
     <div>
-      <h1 class="text-2xl font-bold text-white mb-2">Artefact Management</h1>
+      <h1 class="text-2xl font-bold text-white mb-2">Artifact Management</h1>
       <p class="text-gray-400">
-        Upload, organize, and manage artefacts for AI processing and chat capabilities.
+        Upload, organize, and manage artifacts for AI processing and chat capabilities.
       </p>
     </div>
 
@@ -15,7 +15,7 @@
         :aria-label="disabled ? 'Upload disabled. Upgrade plan to continue.' : ''"
       >
         <UIcon name="heroicons:cloud-arrow-up" class="w-4 h-4" />
-        <span>Upload Artefact</span>
+        <span>Upload Artifact</span>
       </button>
     </div>
   </div>

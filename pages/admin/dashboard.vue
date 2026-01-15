@@ -3,23 +3,29 @@
   <div class="space-y-6">
     <!-- Header -->
     <div>
-      <h1 class="text-2xl font-bold text-white mb-2">Dashboard Overview</h1>
-      <p class="text-gray-400">Manage your artefact chatting platform from here.</p>
+      <h1 class="text-xl sm:text-2xl font-bold text-white mb-2">Dashboard Overview</h1>
+      <p class="text-sm sm:text-base text-gray-400">
+        Manage your artifact chatting platform from here.
+      </p>
     </div>
 
     <!-- PLAN UPGRADE ALERT -->
     <PlanUpgradeAlert :data="usageAlertData" @upgrade="goToPlans" />
 
     <!-- Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
       <!-- Total Users -->
-      <UCard class="bg-dark-800 border-dark-700">
+      <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Total Users</p>
 
             <p :class="`text-lg font-bold mt-2 ${usersTextColor}`">
-              {{ loading ? '...' : `${stats.totalUsers} / ${usersLimit}` }}
+              {{
+                loading
+                  ? '...'
+                  : `${stats.totalUsers} / ${profileStore.getUserProfile?.plan_details && (usersLimit === 0 || usersLimit === -1) ? 'Unlimited' : usersLimit || 0}`
+              }}
             </p>
           </div>
 
@@ -27,16 +33,20 @@
             <UIcon name="heroicons:users" class="w-6 h-6 text-blue-400" />
           </div>
         </div>
-      </UCard>
+      </div>
 
-      <!-- Artefacts -->
-      <UCard class="bg-dark-800 border-dark-700">
+      <!-- Artifacts -->
+      <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-gray-400 text-sm font-medium">Artefacts</p>
+            <p class="text-gray-400 text-sm font-medium">Artifacts</p>
 
             <p :class="`text-lg font-bold mt-2 ${artefactsTextColor}`">
-              {{ loading ? '...' : `${stats.totalArtefacts} / ${artefactsLimit}` }}
+              {{
+                loading
+                  ? '...'
+                  : `${stats.totalArtefacts} / ${profileStore.getUserProfile?.plan_details && (artefactsLimit === 0 || artefactsLimit === -1) ? 'Unlimited' : artefactsLimit || 0}`
+              }}
             </p>
           </div>
 
@@ -44,19 +54,19 @@
             <UIcon name="heroicons:document-text" class="w-6 h-6 text-green-400" />
           </div>
         </div>
-      </UCard>
+      </div>
 
       <!-- Conversations -->
-      <UCard class="bg-dark-800 border-dark-700">
+      <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
         <div class="flex items-center justify-between">
           <div>
-            <p class="text-gray-400 text-sm font-medium">Conversations</p>
+            <p class="text-gray-400 text-sm font-medium">Total Queries</p>
 
             <p :class="`text-lg font-bold mt-2 ${conversationsTextColor}`">
               {{
                 loading
                   ? '...'
-                  : `${stats.totalConversations} / ${formatCompactNumber(conversationsLimit)}`
+                  : `${stats.totalConversations} / ${profileStore.getUserProfile?.plan_details && (conversationsLimit === 0 || conversationsLimit === -1) ? 'Unlimited' : formatCompactNumber(conversationsLimit || 0)}`
               }}
             </p>
           </div>
@@ -65,10 +75,10 @@
             <UIcon name="heroicons:chat-bubble-left-right" class="w-6 h-6 text-purple-400" />
           </div>
         </div>
-      </UCard>
+      </div>
 
       <!-- Tokens Used -->
-      <UCard class="bg-dark-800 border-dark-700">
+      <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Tokens Used</p>
@@ -82,15 +92,17 @@
             <UIcon name="heroicons:bolt" class="w-6 h-6 text-orange-400" />
           </div>
         </div>
-      </UCard>
+      </div>
     </div>
 
     <!-- Main Content Grid -->
-    <div class="grid lg:grid-cols-2 gap-6">
+    <div class="grid lg:grid-cols-2 gap-3 sm:gap-6">
       <!-- Recent Users -->
       <div class="bg-dark-800 rounded-lg border border-dark-700">
-        <div class="flex items-center justify-between p-6 border-b border-dark-700">
-          <h2 class="text-lg font-semibold text-white">Recent Users</h2>
+        <div
+          class="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-6 border-b border-dark-700 gap-3 sm:gap-0"
+        >
+          <h2 class="text-base sm:text-lg font-semibold text-white">Recent Users</h2>
           <div class="text-sm text-gray-400">Latest user registrations and activity</div>
           <!-- :disabled="disableAddUser" -->
           <!-- :title="
@@ -109,7 +121,7 @@
             Add User
           </button>
         </div>
-        <div class="p-6">
+        <div class="p-4 sm:p-6">
           <div v-if="loading" class="space-y-4">
             <div v-for="i in 4" :key="i" class="flex items-center space-x-3 animate-pulse">
               <div class="w-10 h-10 bg-gray-600 rounded-full"></div>
@@ -147,9 +159,11 @@
 
       <!-- Recent Documents -->
       <div class="bg-dark-800 rounded-lg border border-dark-700">
-        <div class="flex items-center justify-between p-6 border-b border-dark-700">
-          <h2 class="text-lg font-semibold text-white">Recent Artefacts</h2>
-          <div class="text-sm text-gray-400">Latest artefact uploads and processing status</div>
+        <div
+          class="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 sm:p-6 border-b border-dark-700 gap-3 sm:gap-0"
+        >
+          <h2 class="text-base sm:text-lg font-semibold text-white">Recent Artifacts</h2>
+          <div class="text-sm text-gray-400">Latest artifact uploads and processing status</div>
           <button
             @click="navigateToArtefacts"
             class="text-primary-400 hover:text-primary-300 text-sm font-medium flex items-center gap-1"
@@ -158,7 +172,7 @@
             Upload
           </button>
         </div>
-        <div class="p-6">
+        <div class="p-4 sm:p-6">
           <div v-if="loading" class="space-y-4">
             <div v-for="i in 4" :key="i" class="flex items-center space-x-3 animate-pulse">
               <div class="flex-1">
@@ -265,7 +279,7 @@ const userColumns = [
 ]
 
 const artefactColumns = [
-  { key: 'fileInfo', label: 'Artefact', sortable: false },
+  { key: 'fileInfo', label: 'Artifact', sortable: false },
   { key: 'status', label: 'Status', sortable: false },
   { key: 'updatedAt', label: 'Updated At', sortable: false },
 ]
@@ -294,13 +308,13 @@ const usersUsage = computed(() => {
   return { name: 'Users', current, limit, percentage }
 })
 
-// 2. Artefacts usage
+// 2. Artifacts usage
 const artefactsLimit = computed(() => (planDetails.value as any)?.artefacts || 0)
 const artefactsUsage = computed(() => {
   const current = stats.value.totalArtefacts
   const limit = artefactsLimit.value
   const percentage = limit > 0 ? (current / limit) * 100 : 0
-  return { name: 'Artefacts', current, limit, percentage }
+  return { name: 'Artifacts', current, limit, percentage }
 })
 
 // 3. Conversations usage (Query Limit)
@@ -309,7 +323,7 @@ const conversationsUsage = computed(() => {
   const current = stats.value.totalConversations
   const limit = conversationsLimit.value
   const percentage = limit > 0 ? (current / limit) * 100 : 0
-  return { name: 'Conversations', current, limit, percentage }
+  return { name: 'Total Queries', current, limit, percentage }
 })
 
 // 4. Tokens usage (Token Limit)
@@ -356,7 +370,7 @@ const getUsageColor = (current: number, limit?: number) => {
 // Users
 const usersTextColor = computed(() => getUsageColor(stats.value.totalUsers, usersLimit.value))
 
-// Artefacts
+// Artifacts
 const artefactsTextColor = computed(() =>
   getUsageColor(stats.value.totalArtefacts, artefactsLimit.value),
 )
@@ -449,7 +463,7 @@ const fetchDashboardData = async (orgId?: string | null) => {
       updated_at: u.updated_at,
     }))
 
-    // Map recent artefacts
+    // Map recent artifacts
     recentArtefacts.value = dashboardStore.recentArtefacts.map((d: any) => ({
       id: d.id,
       title: d.title,

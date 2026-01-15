@@ -114,9 +114,9 @@
       </div>
 
       <!-- Register link -->
-      <div class="text-center space-y-3">
-        <NuxtLink to="/signup" class="btn-primary w-full"> Create New Account </NuxtLink>
-        <NuxtLink to="/book-meeting" class="btn-outline w-full ml-3"> Book a Meeting </NuxtLink>
+      <div class="space-y-3">
+        <NuxtLink to="/signup" class="btn-primary w-full block text-center"> Create New Account </NuxtLink>
+        <NuxtLink to="/book-meeting" class="btn-outline w-full block text-center"> Book a Meeting </NuxtLink>
       </div>
     </div>
   </div>
