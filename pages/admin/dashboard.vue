@@ -2,9 +2,9 @@
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div>
-      <h1 class="text-xl sm:text-2xl font-bold text-white mb-2">Dashboard Overview</h1>
-      <p class="text-sm sm:text-base text-gray-400">
+    <div class="space-y-1 sm:space-y-2">
+      <h1 class="text-lg sm:text-xl lg:text-2xl font-bold text-white">Dashboard Overview</h1>
+      <p class="text-xs sm:text-sm lg:text-base text-gray-400">
         Manage your artifact chatting platform from here.
       </p>
     </div>
@@ -13,9 +13,9 @@
     <PlanUpgradeAlert :data="usageAlertData" @upgrade="goToPlans" />
 
     <!-- Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 xl:gap-6">
       <!-- Total Users -->
-      <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
+      <div class="bg-dark-800 rounded-lg p-4 sm:p-6 border border-dark-700">
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Total Users</p>
@@ -96,7 +96,7 @@
     </div>
 
     <!-- Main Content Grid -->
-    <div class="grid lg:grid-cols-2 gap-3 sm:gap-6">
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-4 xl:gap-6">
       <!-- Recent Users -->
       <div class="bg-dark-800 rounded-lg border border-dark-700">
         <div
@@ -206,12 +206,12 @@
 
     <!-- Platform Integrations -->
     <div class="bg-dark-800 rounded-lg border border-dark-700">
-      <div class="flex items-center justify-between p-6 border-b border-dark-700">
-        <h2 class="text-lg font-semibold text-white">Platform Integrations</h2>
-        <div class="text-sm text-gray-400">Manage connections to external platforms</div>
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 sm:p-6 border-b border-dark-700 gap-2 sm:gap-0">
+        <h2 class="text-base sm:text-lg font-semibold text-white">Platform Integrations</h2>
+        <div class="text-xs sm:text-sm text-gray-400">Manage connections to external platforms</div>
       </div>
-      <div class="p-6">
-        <div class="grid md:grid-cols-3 gap-6">
+      <div class="p-4 sm:p-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-6">
           <div
             v-for="integration in integrations"
             :key="integration.id"

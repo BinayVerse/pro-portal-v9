@@ -1,18 +1,18 @@
 <template>
   <div>
-    <section class="space-y-6">
+    <section class="space-y-4 sm:space-y-6">
       <div class="max-w-7xl">
-        <div class="mb-6">
-          <h1 class="text-2xl font-bold text-white">My Plan</h1>
-          <p class="text-gray-400 text-sm">View and manage your organization's subscription.</p>
+        <div class="mb-4 sm:mb-6">
+          <h1 class="text-lg sm:text-xl lg:text-2xl font-bold text-white">My Plan</h1>
+          <p class="text-xs sm:text-sm text-gray-400">View and manage your organization's subscription.</p>
         </div>
 
-        <div class="space-y-6">
-          <div class="bg-dark-800 rounded-lg border border-dark-700 p-6">
+        <div class="space-y-4 sm:space-y-6">
+          <div class="bg-dark-800 rounded-lg border border-dark-700 p-4 sm:p-6">
             <div v-if="loading" class="text-gray-400">Loading...</div>
             <div v-else>
               <div v-if="currentPlan && currentPlan.plan" class="bg-dark-800 rounded-lg">
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 sm:gap-6">
                   <!-- BASE PLAN -->
                   <div class="lg:col-span-2">
                     <div class="flex items-center justify-between mb-2">
@@ -76,7 +76,7 @@
                   <!-- ADD-ONS -->
                   <div
                     v-if="addons.length > 0 && !isCurrentPlanUnlimited && !isCurrentPlanFree"
-                    class="lg:col-span-1 border-l border-dark-700 pl-4"
+                    class="lg:col-span-1 border-t lg:border-t-0 lg:border-l border-dark-700 pt-4 lg:pt-0 lg:pl-4 mt-4 lg:mt-0"
                   >
                     <h4 class="text-sm font-semibold text-white mb-3">Add-Ons</h4>
 
@@ -114,7 +114,7 @@
 
           <div
             v-if="!isCurrentPlanUnlimited && (profileStore.userProfile as any)?.source !== 'aws'"
-            class="flex align-items-center gap-4 mt-4"
+            class="flex flex-col sm:flex-row sm:align-items-center gap-2 sm:gap-4 mt-4"
           >
             <div
               v-if="!isCurrentPlanUnlimited && (profileStore.userProfile as any)?.source !== 'aws'"

@@ -1,7 +1,7 @@
 <template>
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 xl:gap-6">
     <!-- Total Documents -->
-    <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
+    <div class="bg-dark-800 rounded-lg p-3 sm:p-4 lg:p-6 border border-dark-700">
       <div v-if="props.loading" class="animate-pulse">
         <div class="flex items-center justify-between">
           <div>

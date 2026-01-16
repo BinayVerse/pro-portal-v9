@@ -11,11 +11,15 @@
               alt="Provento Logo"
               class="w-7 h-7 md:w-8 md:h-8"
             />
-            <span class="text-white text-base sm:text-lg md:text-xl font-semibold">provento.ai</span>
+            <span class="text-white text-base sm:text-lg md:text-xl font-semibold"
+              >provento.ai</span
+            >
           </NuxtLink>
 
           <!-- Main Navigation -->
-          <div class="hidden md:flex items-center space-x-3 lg:space-x-8 flex-1 justify-center px-4">
+          <div
+            class="hidden md:flex items-center space-x-3 lg:space-x-8 flex-1 justify-center px-4"
+          >
             <NuxtLink
               to="/"
               class="text-gray-300 hover:text-white transition-colors duration-200 text-sm md:text-base whitespace-nowrap"
@@ -23,7 +27,7 @@
             >
               Home
             </NuxtLink>
-            
+
             <!-- Features with dropdown -->
             <div
               class="relative"
@@ -61,7 +65,7 @@
                   :class="[
                     'block px-4 py-2 text-gray-300 hover:text-white hover:bg-dark-800 transition-colors duration-200',
                     feature.disabled ? 'text-gray-500 hover:text-gray-500 cursor-not-allowed' : '',
-                    { 'text-primary-400': $route.path === `/features/${feature.slug}` }
+                    { 'text-primary-400': $route.path === `/features/${feature.slug}` },
                   ]"
                 >
                   {{ feature.name }}
@@ -127,13 +131,21 @@
 
           <!-- Right side buttons (lg screen and up) -->
           <div class="hidden lg:flex items-center space-x-2 lg:space-x-4 flex-shrink-0">
-            <NuxtLink to="/book-meeting" class="btn-outline text-xs md:text-sm py-2 px-2 md:px-3 whitespace-nowrap">
+            <NuxtLink
+              to="/book-meeting"
+              class="btn-outline text-xs md:text-sm py-2 px-2 md:px-3 whitespace-nowrap"
+            >
               Book a Demo
             </NuxtLink>
 
             <template v-if="auth.isAuthenticated">
               <UDropdown :items="profileItems" :popper="{ placement: 'bottom-end' }">
-                <UButton variant="ghost" trailing-icon="heroicons:chevron-down" size="sm" class="text-xs md:text-sm">
+                <UButton
+                  variant="ghost"
+                  trailing-icon="heroicons:chevron-down"
+                  size="sm"
+                  class="text-xs md:text-sm"
+                >
                   <UAvatar
                     src=""
                     :alt="profileStore.userProfile?.name?.toUpperCase()"
@@ -155,7 +167,12 @@
               >
                 Login
               </NuxtLink>
-              <NuxtLink to="/signup" class="btn-primary text-xs md:text-sm px-2 md:px-3 py-1.5 md:py-2"> Sign Up </NuxtLink>
+              <NuxtLink
+                to="/signup"
+                class="btn-primary text-xs md:text-sm px-2 md:px-3 py-1.5 md:py-2"
+              >
+                Sign Up
+              </NuxtLink>
             </template>
           </div>
 
@@ -165,7 +182,10 @@
             class="lg:hidden text-gray-300 hover:text-white p-2 flex-shrink-0"
             aria-label="Toggle menu"
           >
-            <UIcon :name="mobileMenuOpen ? 'i-heroicons-x-mark' : 'i-heroicons-bars-3'" class="w-6 h-6" />
+            <UIcon
+              :name="mobileMenuOpen ? 'i-heroicons-x-mark' : 'i-heroicons-bars-3'"
+              class="w-6 h-6"
+            />
           </button>
         </div>
 
@@ -176,18 +196,45 @@
         >
           <!-- Mobile menu items (visible only on small screens below md) -->
           <div class="md:hidden px-4 py-4 space-y-1">
-            <NuxtLink to="/" @click="mobileMenuOpen = false" class="block text-gray-300 hover:text-white hover:bg-dark-800 px-4 py-3 rounded-md text-base font-medium transition-colors">Home</NuxtLink>
-            <NuxtLink to="/features/use-cases" @click="mobileMenuOpen = false" class="block text-gray-300 hover:text-white hover:bg-dark-800 px-4 py-3 rounded-md text-base font-medium transition-colors"
+            <NuxtLink
+              to="/"
+              @click="mobileMenuOpen = false"
+              class="block text-gray-300 hover:text-white hover:bg-dark-800 px-4 py-3 rounded-md text-base font-medium transition-colors"
+              >Home</NuxtLink
+            >
+            <NuxtLink
+              to="/features/use-cases"
+              @click="mobileMenuOpen = false"
+              class="block text-gray-300 hover:text-white hover:bg-dark-800 px-4 py-3 rounded-md text-base font-medium transition-colors"
               >Features</NuxtLink
             >
-            <NuxtLink to="/solutions/finance-banking" @click="mobileMenuOpen = false" class="block text-gray-300 hover:text-white hover:bg-dark-800 px-4 py-3 rounded-md text-base font-medium transition-colors"
+            <NuxtLink
+              to="/solutions/finance-banking"
+              @click="mobileMenuOpen = false"
+              class="block text-gray-300 hover:text-white hover:bg-dark-800 px-4 py-3 rounded-md text-base font-medium transition-colors"
               >Solutions</NuxtLink
             >
-            <NuxtLink to="/pricing" @click="mobileMenuOpen = false" class="block text-gray-300 hover:text-white hover:bg-dark-800 px-4 py-3 rounded-md text-base font-medium transition-colors"
+            <NuxtLink
+              to="/pricing"
+              @click="mobileMenuOpen = false"
+              class="block text-gray-300 hover:text-white hover:bg-dark-800 px-4 py-3 rounded-md text-base font-medium transition-colors"
               >Pricing</NuxtLink
             >
-            <NuxtLink to="/faq" @click="mobileMenuOpen = false" class="block text-gray-300 hover:text-white hover:bg-dark-800 px-4 py-3 rounded-md text-base font-medium transition-colors">FAQ</NuxtLink>
+            <NuxtLink
+              to="/faq"
+              @click="mobileMenuOpen = false"
+              class="block text-gray-300 hover:text-white hover:bg-dark-800 px-4 py-3 rounded-md text-base font-medium transition-colors"
+              >FAQ</NuxtLink
+            >
             <div class="border-t border-dark-700 pt-4 mt-4">
+              <NuxtLink
+                to="/book-meeting"
+                @click="mobileMenuOpen = false"
+                class="block btn-outline text-center py-3 px-4 rounded-md font-medium transition-colors mb-3"
+              >
+                Book a Demo
+              </NuxtLink>
+
               <template v-if="auth.isAuthenticated">
                 <NuxtLink
                   v-if="isProfileComplete"
@@ -196,7 +243,10 @@
                   class="block text-gray-300 hover:text-white hover:bg-dark-800 px-4 py-3 rounded-md text-base font-medium transition-colors"
                   >Dashboard</NuxtLink
                 >
-                <NuxtLink to="/change-password" @click="mobileMenuOpen = false" class="block text-gray-300 hover:text-white hover:bg-dark-800 px-4 py-3 rounded-md text-base font-medium transition-colors"
+                <NuxtLink
+                  to="/change-password"
+                  @click="mobileMenuOpen = false"
+                  class="block text-gray-300 hover:text-white hover:bg-dark-800 px-4 py-3 rounded-md text-base font-medium transition-colors"
                   >Change Password</NuxtLink
                 >
                 <button
@@ -207,10 +257,18 @@
                 </button>
               </template>
               <template v-else>
-                <NuxtLink to="/login" @click="mobileMenuOpen = false" class="block text-gray-300 hover:text-white hover:bg-dark-800 px-4 py-3 rounded-md text-base font-medium transition-colors"
+                <NuxtLink
+                  to="/login"
+                  @click="mobileMenuOpen = false"
+                  class="block text-gray-300 hover:text-white hover:bg-dark-800 px-4 py-3 rounded-md text-base font-medium transition-colors"
                   >Login</NuxtLink
                 >
-                <NuxtLink to="/signup" @click="mobileMenuOpen = false" class="btn-primary block text-center mt-3 w-full">Sign Up</NuxtLink>
+                <NuxtLink
+                  to="/signup"
+                  @click="mobileMenuOpen = false"
+                  class="btn-primary block text-center mt-3 w-full"
+                  >Sign Up</NuxtLink
+                >
               </template>
             </div>
           </div>
@@ -218,7 +276,11 @@
           <!-- Tablet menu (CTA buttons only on md and up) -->
           <div class="hidden md:block px-4 py-4">
             <div class="space-y-3">
-              <NuxtLink to="/book-meeting" @click="mobileMenuOpen = false" class="block btn-outline text-center py-2 px-4 rounded-lg font-medium transition-colors">
+              <NuxtLink
+                to="/book-meeting"
+                @click="mobileMenuOpen = false"
+                class="block btn-outline text-center py-2 px-4 rounded-lg font-medium transition-colors"
+              >
                 Book a Demo
               </NuxtLink>
               <template v-if="auth.isAuthenticated">
@@ -229,7 +291,10 @@
                   class="block text-gray-300 hover:text-white hover:bg-dark-800 px-4 py-3 rounded-md text-base font-medium transition-colors"
                   >Dashboard</NuxtLink
                 >
-                <NuxtLink to="/change-password" @click="mobileMenuOpen = false" class="block text-gray-300 hover:text-white hover:bg-dark-800 px-4 py-3 rounded-md text-base font-medium transition-colors"
+                <NuxtLink
+                  to="/change-password"
+                  @click="mobileMenuOpen = false"
+                  class="block text-gray-300 hover:text-white hover:bg-dark-800 px-4 py-3 rounded-md text-base font-medium transition-colors"
                   >Change Password</NuxtLink
                 >
                 <button
@@ -240,10 +305,18 @@
                 </button>
               </template>
               <template v-else>
-                <NuxtLink to="/login" @click="mobileMenuOpen = false" class="block text-center text-gray-300 hover:text-white hover:bg-dark-800 px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                <NuxtLink
+                  to="/login"
+                  @click="mobileMenuOpen = false"
+                  class="block text-center text-gray-300 hover:text-white hover:bg-dark-800 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                >
                   Login
                 </NuxtLink>
-                <NuxtLink to="/signup" @click="mobileMenuOpen = false" class="block btn-primary text-center py-2 px-4 rounded-lg font-medium transition-colors">
+                <NuxtLink
+                  to="/signup"
+                  @click="mobileMenuOpen = false"
+                  class="block btn-primary text-center py-2 px-4 rounded-lg font-medium transition-colors"
+                >
                   Sign Up
                 </NuxtLink>
               </template>
@@ -345,7 +418,11 @@ const isProfileComplete = computed(() => {
 const profileItems = computed(() => {
   const base: any[] = []
   if (auth.user?.role_id !== 0) {
-    base.push({ label: 'My Account', icon: 'heroicons:user', click: () => navigateTo('/admin/profile') })
+    base.push({
+      label: 'My Account',
+      icon: 'heroicons:user',
+      click: () => navigateTo('/admin/profile'),
+    })
   }
   base.push({
     label: 'Change Password',
@@ -364,7 +441,7 @@ const profileItems = computed(() => {
       await auth.signOut()
     },
   }
-    // Return grouped profile menu items to match UDropdown expectations (groups shown as sections)
+  // Return grouped profile menu items to match UDropdown expectations (groups shown as sections)
   const items: any[] = []
   items.push(isProfileComplete.value ? [dashboard, ...base] : base)
   items.push([logout])
@@ -372,12 +449,14 @@ const profileItems = computed(() => {
 })
 
 // Add features array
-const features = ref([
-  { name: 'Use Cases', slug: 'use-cases', disabled: false },
-  { name: 'How It Works', slug: 'how-it-works', disabled: false },
-  { name: 'Security', slug: 'security', disabled: true },
-  { name: 'Customer Stories', slug: 'customer-stories', disabled: true },
-].filter(feature => feature.slug && feature.name))
+const features = ref(
+  [
+    { name: 'Use Cases', slug: 'use-cases', disabled: false },
+    { name: 'How It Works', slug: 'how-it-works', disabled: false },
+    { name: 'Security', slug: 'security', disabled: true },
+    { name: 'Customer Stories', slug: 'customer-stories', disabled: true },
+  ].filter((feature) => feature.slug && feature.name),
+)
 
 const industries = [
   { name: 'Finance & Banking', slug: 'finance-banking' },
@@ -388,6 +467,5 @@ const industries = [
   { name: 'Manufacturing', slug: 'manufacturing' },
   { name: 'Education', slug: 'education' },
   { name: 'Government', slug: 'government' },
-  
 ]
 </script>

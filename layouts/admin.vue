@@ -1,33 +1,42 @@
 <template>
-  <div class="min-h-screen bg-black flex">
+  <div class="h-screen bg-black flex overflow-hidden">
     <!-- Mobile menu overlay -->
     <div
-      v-if="sidebarOpen && isMobile"
-      class="fixed inset-0 bg-black/50 z-30 md:hidden"
+      v-if="sidebarOpen && (isMobile || isTablet)"
+      class="fixed inset-0 bg-black/50 z-30 md:hidden pointer-events-auto"
       @click="sidebarOpen = false"
     />
 
     <!-- Sidebar (fixed on mobile, relative on desktop) -->
     <aside
-      class="fixed md:relative left-0 top-0 bottom-0 w-64 bg-dark-900 border-r border-dark-700 flex flex-col z-40 overflow-hidden transition-transform duration-300"
-      :class="isMobile ? { '-translate-x-full': !sidebarOpen, 'translate-x-0': sidebarOpen } : ''"
+      v-if="isClient"
+      @click.stop
+      class="fixed lg:fixed left-0 top-16 lg:top-0 h-[calc(100vh-4rem)] lg:h-screen w-64 bg-dark-900 border-r border-dark-700 flex flex-col z-40 transition-transform duration-300"
+      :class="[
+        'transition-transform duration-300',
+        isMobile || isTablet
+          ? sidebarOpen
+            ? 'translate-x-0'
+            : '-translate-x-full'
+          : 'translate-x-0',
+      ]"
     >
       <!-- Logo -->
-      <div class="h-16 flex items-center border-b border-dark-700 flex-none shrink-0">
-        <div class="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center">
-          <NuxtLink to="/" class="flex items-center space-x-3">
-            <img
-              src="https://cdn.builder.io/api/v1/image/assets%2Fb2a7382a9c9146babd538ccc60e9d0b5%2Fbddd43caf4614f99a3fbff498927abcc?format=webp&width=800"
-              alt="Provento Logo"
-              class="w-8 h-8"
-            />
-            <span class="text-white text-xl font-semibold">provento.ai</span>
-          </NuxtLink>
-        </div>
+      <div
+        class="hidden lg:flex h-16 items-center border-b border-dark-700 flex-none shrink-0 px-4 sm:px-6"
+      >
+        <NuxtLink to="/" class="flex items-center space-x-3">
+          <img
+            src="https://cdn.builder.io/api/v1/image/assets%2Fb2a7382a9c9146babd538ccc60e9d0b5%2Fbddd43caf4614f99a3fbff498927abcc?format=webp&width=800"
+            alt="Provento Logo"
+            class="w-8 h-8"
+          />
+          <span class="text-white text-xl font-semibold">provento.ai</span>
+        </NuxtLink>
       </div>
 
       <!-- Admin Navigation -->
-      <nav class="flex-1 p-6 overflow-y-auto min-h-0">
+      <nav class="flex-1 p-6 overflow-y-auto">
         <div class="space-y-2">
           <!-- Dashboard menu -->
           <!-- Show superadmin dashboard when user is superadmin AND no organization selected -->
@@ -250,7 +259,7 @@
       </nav>
 
       <!-- Admin Footer (Mobile Only) -->
-      <div class="border-t border-dark-700 p-4 flex-none shrink-0 md:hidden">
+      <div class="border-t border-dark-700 p-4 flex-none shrink-0 lg:hidden">
         <!-- Logo with text - Clickable -->
         <NuxtLink
           to="/"
@@ -272,19 +281,18 @@
     </aside>
 
     <!-- Main content area (offset for fixed sidebar) -->
-    <div class="flex-1 flex flex-col min-h-0 pt-16 w-full">
+    <div class="flex-1 flex flex-col min-h-0 w-full lg:ml-64 relative overflow-hidden">
       <!-- Top header (fixed height) -->
       <header
-        class="fixed top-0 right-0 bg-dark-900 border-b border-dark-700 px-3 md:px-6 h-16 flex items-center z-50 transition-all duration-300"
-        :style="{ left: isMobile ? '0' : '16rem' }"
+        class="sticky top-0 bg-dark-900 border-b border-dark-700 px-3 md:px-6 h-16 flex items-center z-30"
       >
         <div class="items-center w-full flex-1" style="padding-left: 0">
           <div class="flex items-center justify-between gap-2 md:gap-4 flex-1">
             <!-- Mobile menu toggle button -->
             <button
-              v-if="isMobile"
+              v-if="isMobile || isTablet"
               @click="sidebarOpen = !sidebarOpen"
-              class="md:hidden text-gray-300 hover:text-white p-2 -ml-2 flex-shrink-0"
+              class="lg:hidden text-gray-300 hover:text-white p-2 -ml-2 flex-shrink-0"
               aria-label="Toggle sidebar"
             >
               <UIcon
@@ -449,7 +457,7 @@
       </div>
 
       <!-- Page content (scrollable) -->
-      <main class="p-4 md:p-6 bg-black overflow-auto flex-1 min-h-0">
+      <main class="flex-1 overflow-y-auto overflow-x-hidden p-4 bg-black">
         <slot />
       </main>
 
@@ -478,6 +486,7 @@ const integrationsOpen = ref(true)
 const isClient = ref(false)
 const sidebarOpen = ref(false)
 const isMobile = ref(false)
+const isTablet = ref(false)
 const auth = useAuthStore()
 const profileStore = useProfileStore()
 const superAdminStore = useSuperAdminStore()
@@ -517,20 +526,30 @@ const checkAndShowSubscriptionModal = async () => {
   }
 }
 
-const checkMobileScreen = () => {
-  isMobile.value = typeof window !== 'undefined' && window.innerWidth < 768
-  if (!isMobile.value) {
+const checkScreen = () => {
+  if (typeof window === 'undefined') return
+
+  const width = window.innerWidth
+
+  // Align with Tailwind breakpoints: lg breakpoint is at 1024px
+  isMobile.value = width < 768
+  isTablet.value = width >= 768 && width < 1024
+
+  // Show sidebar from 1024px and above (matching Tailwind's lg: breakpoint)
+  if (width >= 1024) {
     sidebarOpen.value = true
+  } else {
+    sidebarOpen.value = false
   }
 }
 
 onMounted(async () => {
   isClient.value = true
-  checkMobileScreen()
+  checkScreen()
 
   // Add resize listener for mobile detection
   if (typeof window !== 'undefined') {
-    window.addEventListener('resize', checkMobileScreen)
+    window.addEventListener('resize', checkScreen)
   }
 
   await checkAndShowSubscriptionModal()
@@ -539,7 +558,7 @@ onMounted(async () => {
 // Cleanup resize listener on unmount
 onUnmounted(() => {
   if (typeof window !== 'undefined') {
-    window.removeEventListener('resize', checkMobileScreen)
+    window.removeEventListener('resize', checkScreen)
   }
 })
 
@@ -548,7 +567,7 @@ watch(
   () => route.name,
   async () => {
     // Close sidebar on mobile when navigating
-    if (isMobile.value) {
+    if (isMobile.value || isTablet.value) {
       sidebarOpen.value = false
     }
     await checkAndShowSubscriptionModal()

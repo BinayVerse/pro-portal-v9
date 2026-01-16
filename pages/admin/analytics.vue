@@ -2,12 +2,12 @@
   <AdminLayout>
     <div class="space-y-6">
       <!-- Header with Date Range -->
-      <div class="flex justify-between items-center" style="margin-top: 0">
+      <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6" style="margin-top: 0">
         <div>
-          <h1 class="text-2xl font-bold text-white">Analytics & Reports</h1>
-          <p class="text-gray-400">Comprehensive usage reports</p>
+          <h1 class="text-lg sm:text-xl lg:text-2xl font-bold text-white">Analytics & Reports</h1>
+          <p class="text-xs sm:text-sm lg:text-base text-gray-400">Comprehensive usage reports</p>
         </div>
-        <div class="flex items-center gap-4">
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 flex-shrink-0">
           <select v-model="selectedTimeRange" class="input-field">
             <option v-for="option in timeRangeOptions" :key="option.value" :value="option.value">
               {{ option.rangeLabel }}
@@ -15,10 +15,11 @@
           </select>
           <button
             @click="exportReport"
-            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center space-x-2"
+            class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center sm:justify-start space-x-2"
           >
-            <UIcon name="heroicons:arrow-down-tray" class="w-4 h-4 mr-2" />
-            <span>Export Report</span>
+            <UIcon name="heroicons:arrow-down-tray" class="w-4 h-4" />
+            <span class="hidden sm:inline">Export Report</span>
+            <span class="sm:hidden">Export</span>
           </button>
         </div>
       </div>
@@ -27,9 +28,9 @@
       <PlanUpgradeAlert :data="usageAlertData" @upgrade="navigateToPlans" />
 
       <!-- Top Metrics -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 xl:gap-6 mt-4">
         <!-- Total Queries -->
-        <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
+        <div class="bg-dark-800 rounded-lg p-3 sm:p-4 xl:p-6 border border-dark-700">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-400 text-sm font-medium">Total Queries</p>
@@ -50,7 +51,7 @@
         </div>
 
         <!-- Total Users -->
-        <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
+        <div class="bg-dark-800 rounded-lg p-3 sm:p-4 xl:p-6 border border-dark-700">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-400 text-sm font-medium">Total Users</p>
@@ -74,7 +75,7 @@
         </div>
 
         <!-- Artifacts Created -->
-        <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
+        <div class="bg-dark-800 rounded-lg p-3 sm:p-4 xl:p-6 border border-dark-700">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-400 text-sm font-medium">Artifacts Created</p>
@@ -98,7 +99,7 @@
         </div>
 
         <!-- Token Usage -->
-        <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
+        <div class="bg-dark-800 rounded-lg p-3 sm:p-4 xl:p-6 border border-dark-700">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-gray-400 text-sm font-medium">Token Usage</p>
@@ -123,7 +124,7 @@
       </div>
 
       <!-- Charts Grid -->
-      <div class="grid lg:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-4 xl:gap-6">
         <!-- User-wise Token Usage by Channel -->
         <div class="bg-dark-800 rounded-lg border border-dark-700 flex flex-col">
           <div class="p-6 border-b border-dark-700">
@@ -189,7 +190,7 @@
       </div>
 
       <!-- Bottom Grid -->
-      <div class="grid lg:grid-cols-2 gap-6">
+      <div class="grid xl:grid-cols-2 gap-6">
         <!-- Category-wise Document Distribution -->
         <div class="bg-dark-800 rounded-lg border border-dark-700 flex flex-col">
           <div class="p-6 border-b border-dark-700">

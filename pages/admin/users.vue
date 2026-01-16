@@ -1,14 +1,14 @@
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-0" style="margin-top: 0">
+    <div class="space-y-4 sm:space-y-0 sm:flex sm:flex-row sm:items-start sm:justify-between" style="margin-top: 0">
       <div class="w-full sm:w-auto">
-        <h1 class="text-xl sm:text-2xl font-bold text-white mb-2">User Management</h1>
-        <p class="text-sm sm:text-base text-gray-400">
+        <h1 class="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-1 sm:mb-2">User Management</h1>
+        <p class="text-xs sm:text-sm lg:text-base text-gray-400">
           Manage user accounts, roles, and permissions across your organization.
         </p>
       </div>
-      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto flex-shrink-0">
         <button
           @click="!disableUserActions && openBulkUplaod()"
           :disabled="disableUserActions"
@@ -43,9 +43,9 @@
     <PlanUpgradeAlert :data="usageAlertData" @upgrade="goToPlans" />
 
     <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 xl:gap-6">
       <!-- Total Users -->
-      <div class="bg-dark-800 rounded-lg p-4 sm:p-6 border border-dark-700">
+      <div class="bg-dark-800 rounded-lg p-3 sm:p-4 xl:p-6 border border-dark-700">
         <div class="flex items-center justify-between">
           <div>
             <p class="text-gray-400 text-sm font-medium">Total Users</p>
@@ -105,8 +105,8 @@
     </div>
 
     <!-- Search, Filters and Sort -->
-    <div class="bg-dark-800 rounded-lg p-6 border border-dark-700">
-      <div class="flex flex-col sm:flex-row gap-4 items-center">
+    <div class="bg-dark-800 rounded-lg p-4 sm:p-6 border border-dark-700">
+      <div class="flex flex-col gap-3 sm:gap-4">
         <!-- Search Input -->
         <div class="flex-1">
           <div class="relative">
@@ -122,22 +122,25 @@
           </div>
         </div>
 
-        <!-- Role Filter -->
-        <div class="sm:w-48">
-          <select v-model="selectedRole" :class="baseInputClass">
-            <option value="">All Roles</option>
-            <option value="admin">Admin</option>
-            <option value="user">User</option>
-          </select>
-        </div>
+        <!-- Filters Row -->
+        <div class="flex flex-col sm:flex-row gap-3 sm:gap-4">
+          <!-- Role Filter -->
+          <div class="flex-1 sm:w-auto">
+            <select v-model="selectedRole" :class="baseInputClass">
+              <option value="">All Roles</option>
+              <option value="admin">Admin</option>
+              <option value="user">User</option>
+            </select>
+          </div>
 
-        <!-- Status Filter -->
-        <div class="sm:w-48">
-          <select v-model="selectedStatus" :class="baseInputClass">
-            <option value="">All Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
+          <!-- Status Filter -->
+          <div class="flex-1 sm:w-auto">
+            <select v-model="selectedStatus" :class="baseInputClass">
+              <option value="">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
         </div>
       </div>
     </div>
@@ -145,9 +148,9 @@
     <!-- Users Table -->
     <div class="bg-dark-800 rounded-lg border border-dark-700 overflow-hidden">
       <!-- Table Header -->
-      <div class="px-6 py-4 border-b border-dark-700">
-        <h2 class="text-lg font-semibold text-white">All Users</h2>
-        <p class="text-gray-400 text-sm">
+      <div class="px-4 sm:px-6 py-4 border-b border-dark-700">
+        <h2 class="text-base sm:text-lg font-semibold text-white">All Users</h2>
+        <p class="text-gray-400 text-xs sm:text-sm mt-1">
           A list of all users in your organization including their contact information and roles.
         </p>
       </div>
@@ -292,24 +295,26 @@
             </div>
           </template>
         </UTable>
-        <div class="p-4 flex items-center justify-between border-t border-dark-700">
-          <div class="flex items-center space-x-3">
-            <div class="text-sm text-gray-400 hidden sm:block">Rows per page</div>
-            <div class="w-24">
+        <div class="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between border-t border-dark-700 gap-4 sm:gap-0">
+          <div class="flex items-center space-x-3 text-xs sm:text-sm">
+            <div class="text-gray-400 hidden sm:block">Rows per page</div>
+            <div class="w-20 sm:w-24">
               <USelect v-model="perPage" :options="perPageOptions" size="sm" />
             </div>
           </div>
 
-          <UPagination
-            v-model="page"
-            :total="sortedRows.length"
-            :page-count="computedPageCount"
-            :show-first="true"
-            :show-last="true"
-            :show-edges="true"
-            size="sm"
-            color="blue"
-          />
+          <div class="overflow-x-auto">
+            <UPagination
+              v-model="page"
+              :total="sortedRows.length"
+              :page-count="computedPageCount"
+              :show-first="false"
+              :show-last="false"
+              :show-edges="false"
+              size="sm"
+              color="blue"
+            />
+          </div>
         </div>
       </div>
     </div>

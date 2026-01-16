@@ -2,50 +2,51 @@
   <teleport to="body">
     <div v-if="visible" class="fixed inset-0 z-50 flex items-center justify-center">
       <div class="absolute inset-0 bg-black/50"></div>
-      <div class="relative mx-auto" style="width: 70%; max-width: 90vw; min-width: 320px">
+      <div class="relative mx-auto w-full max-w-5xl px-2 sm:px-4">
         <div class="bg-dark-900 border border-dark-700 rounded-lg overflow-hidden shadow-xl">
-          <div class="flex items-center justify-between p-4 border-b border-dark-700">
-            <div class="w-1/3 flex items-center">
-              <h3 class="text-lg font-semibold text-white">
-                {{ selectedPlan ? 'Checkout' : 'Compare Plans' }}
-              </h3>
-            </div>
-
-            <div class="w-1/3 flex justify-center">
-              <div v-if="!selectedPlan" class="inline-flex rounded-md bg-dark-800 p-0.5">
-                <button
-                  @click="uiState.planCategory = 'base'"
-                  :class="
-                    uiState.planCategory === 'base'
-                      ? 'px-4 py-1.5 bg-primary-600 text-white rounded'
-                      : 'px-4 py-1.5 text-gray-300 rounded'
-                  "
-                >
-                  Base Plans
-                </button>
-
-                <button
-                  @click="handleAddonClick"
-                  :class="
-                    uiState.planCategory === 'addon'
-                      ? 'px-4 py-1.5 bg-primary-600 text-white rounded'
-                      : 'px-4 py-1.5 text-gray-300 rounded'
-                  "
-                >
-                  Add-On Plans
-                </button>
+          <div class="border-b border-dark-700 p-4">
+            <!-- ================= MOBILE ( < md ) ================= -->
+            <div class="md:hidden">
+              <!-- Row 1 -->
+              <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-white">
+                  {{ selectedPlan ? 'Checkout' : 'Compare Plans' }}
+                </h3>
+                <button class="btn-outline" @click="close">Close</button>
               </div>
-            </div>
 
-            <div class="w-1/3 flex justify-end items-center gap-3">
-              <!-- Billing -->
+              <!-- Row 2 -->
+              <div v-if="!selectedPlan" class="flex justify-center mt-3">
+                <div class="inline-flex rounded-md bg-dark-800 p-0.5">
+                  <button
+                    @click="uiState.planCategory = 'base'"
+                    :class="
+                      uiState.planCategory === 'base'
+                        ? 'px-4 py-1.5 bg-primary-600 text-white rounded'
+                        : 'px-4 py-1.5 text-gray-300 rounded'
+                    "
+                  >
+                    Base Plans
+                  </button>
+                  <button
+                    @click="handleAddonClick"
+                    :class="
+                      uiState.planCategory === 'addon'
+                        ? 'px-4 py-1.5 bg-primary-600 text-white rounded'
+                        : 'px-4 py-1.5 text-gray-300 rounded'
+                    "
+                  >
+                    Add-On Plans
+                  </button>
+                </div>
+              </div>
+
+              <!-- Row 3 -->
               <div
-                :class="[
-                  'flex items-center gap-2',
-                  uiState.planCategory === 'base' ? 'visible' : 'invisible',
-                ]"
+                v-if="uiState.planCategory === 'base'"
+                class="flex justify-center items-center gap-2 mt-3"
               >
-                <div class="text-sm text-gray-400">Billing</div>
+                <span class="text-sm text-gray-400">Billing</span>
                 <div class="inline-flex rounded-md border overflow-hidden">
                   <button
                     class="px-3 py-1"
@@ -63,21 +64,134 @@
                   </button>
                 </div>
               </div>
+            </div>
 
-              <!-- Close button ALWAYS visible -->
-              <button class="btn-outline" @click="close">Close</button>
+            <!-- ================= TABLET ( md → < lg ) ================= -->
+            <div class="hidden md:block lg:hidden">
+              <!-- Row 1 -->
+              <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-white">
+                  {{ selectedPlan ? 'Checkout' : 'Compare Plans' }}
+                </h3>
+                <button class="btn-outline" @click="close">Close</button>
+              </div>
+
+              <!-- Row 2 -->
+              <div class="flex justify-center items-center gap-6 mt-3 flex-wrap">
+                <div v-if="!selectedPlan" class="inline-flex rounded-md bg-dark-800 p-0.5">
+                  <button
+                    @click="uiState.planCategory = 'base'"
+                    :class="
+                      uiState.planCategory === 'base'
+                        ? 'px-4 py-1.5 bg-primary-600 text-white rounded'
+                        : 'px-4 py-1.5 text-gray-300 rounded'
+                    "
+                  >
+                    Base Plans
+                  </button>
+                  <button
+                    @click="handleAddonClick"
+                    :class="
+                      uiState.planCategory === 'addon'
+                        ? 'px-4 py-1.5 bg-primary-600 text-white rounded'
+                        : 'px-4 py-1.5 text-gray-300 rounded'
+                    "
+                  >
+                    Add-On Plans
+                  </button>
+                </div>
+
+                <div v-if="uiState.planCategory === 'base'" class="flex items-center gap-2">
+                  <span class="text-sm text-gray-400">Billing</span>
+                  <div class="inline-flex rounded-md border overflow-hidden">
+                    <button
+                      class="px-3 py-1"
+                      :class="period === 'month' ? 'bg-primary-600 text-white' : 'text-gray-300'"
+                      @click="period = 'month'"
+                    >
+                      Monthly
+                    </button>
+                    <button
+                      class="px-3 py-1"
+                      :class="period === 'year' ? 'bg-primary-600 text-white' : 'text-gray-300'"
+                      @click="period = 'year'"
+                    >
+                      Yearly
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ================= DESKTOP ( ≥ lg ) ================= -->
+            <div class="hidden lg:grid grid-cols-3 items-center gap-4">
+              <!-- Left -->
+              <div>
+                <h3 class="text-lg font-semibold text-white">
+                  {{ selectedPlan ? 'Checkout' : 'Compare Plans' }}
+                </h3>
+              </div>
+
+              <!-- Center -->
+              <div class="flex justify-center">
+                <div v-if="!selectedPlan" class="inline-flex rounded-md bg-dark-800 p-0.5">
+                  <button
+                    @click="uiState.planCategory = 'base'"
+                    :class="
+                      uiState.planCategory === 'base'
+                        ? 'px-4 py-1.5 bg-primary-600 text-white rounded'
+                        : 'px-4 py-1.5 text-gray-300 rounded'
+                    "
+                  >
+                    Base Plans
+                  </button>
+                  <button
+                    @click="handleAddonClick"
+                    :class="
+                      uiState.planCategory === 'addon'
+                        ? 'px-4 py-1.5 bg-primary-600 text-white rounded'
+                        : 'px-4 py-1.5 text-gray-300 rounded'
+                    "
+                  >
+                    Add-On Plans
+                  </button>
+                </div>
+              </div>
+
+              <!-- Right -->
+              <div class="flex justify-end items-center gap-3">
+                <div v-if="uiState.planCategory === 'base'" class="flex items-center gap-2">
+                  <span class="text-sm text-gray-400">Billing</span>
+                  <div class="inline-flex rounded-md border overflow-hidden">
+                    <button
+                      class="px-3 py-1"
+                      :class="period === 'month' ? 'bg-primary-600 text-white' : 'text-gray-300'"
+                      @click="period = 'month'"
+                    >
+                      Monthly
+                    </button>
+                    <button
+                      class="px-3 py-1"
+                      :class="period === 'year' ? 'bg-primary-600 text-white' : 'text-gray-300'"
+                      @click="period = 'year'"
+                    >
+                      Yearly
+                    </button>
+                  </div>
+                </div>
+
+                <button class="btn-outline" @click="close">Close</button>
+              </div>
             </div>
           </div>
 
-          <div class="p-6 max-h-[70vh] overflow-y-auto">
+          <div class="p-4 sm:p-6 max-h-[calc(100vh-160px)] overflow-y-auto">
             <div v-if="!selectedPlan">
-              <div
-                class="grid gap-6 mx-auto justify-items-center grid-cols-1 md:grid-cols-2 max-w-5xl"
-              >
+              <div class="grid gap-6 w-full grid-cols-1 md:grid-cols-2">
                 <div
                   v-for="plan in plansGrouped"
                   :key="plan.name"
-                  class="card w-full max-w-sm relative flex flex-col justify-between h-full"
+                  class="card w-full relative flex flex-col justify-between h-full"
                   :class="plan.popular ? 'ring-2 ring-primary-500' : ''"
                 >
                   <div

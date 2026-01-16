@@ -4,20 +4,20 @@
     <UCard class="mb-12">
       <!-- Card Header -->
       <template #header>
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <UAvatar :text="initials" size="lg" color="primary" />
-            <div class="leading-tight">
-              <p class="text-base font-semibold">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-0">
+          <div class="flex items-center gap-3 min-w-0">
+            <UAvatar :text="initials" size="lg" color="primary" class="flex-shrink-0" />
+            <div class="leading-tight min-w-0">
+              <p class="text-sm sm:text-base font-semibold truncate">
                 {{ isEditing ? state.name || state.email : profile.name || profile.email }}
               </p>
-              <p class="text-xs text-gray-400">
+              <p class="text-xs text-gray-400 truncate">
                 {{ isEditing ? state.company || 'No company' : profile.company || 'No company' }}
               </p>
             </div>
           </div>
-          <div v-if="!isEditing">
-            <UButton color="primary" icon="i-heroicons-pencil-square" @click="startEdit">
+          <div v-if="!isEditing" class="flex-shrink-0">
+            <UButton color="primary" icon="i-heroicons-pencil-square" @click="startEdit" class="w-full sm:w-auto">
               Edit Profile
             </UButton>
           </div>
@@ -37,11 +37,11 @@
       </UAlert>
 
       <!-- VIEW MODE -->
-      <div v-if="!isEditing" class="space-y-8">
+      <div v-if="!isEditing" class="space-y-6 sm:space-y-8">
         <!-- Profile section -->
         <section class="space-y-4">
-          <h3 class="text-lg font-semibold">Profile Details</h3>
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <h3 class="text-base sm:text-lg font-semibold">Profile Details</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             <div>
               <p class="text-xs text-gray-400">Full name</p>
               <p class="mt-1">{{ profile.name || '-' }}</p>
@@ -62,13 +62,13 @@
         </section>
 
         <!-- Organization Details section -->
-        <section class="space-y-4">
+        <section class="space-y-4 mt-6 sm:mt-8">
           <div class="border-t border-gray-700" />
           <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold">Organization Details</h3>
+            <h3 class="text-base sm:text-lg font-semibold">Organization Details</h3>
           </div>
           <div class="border-t border-gray-700" />
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             <div>
               <p class="text-xs text-gray-400">Country</p>
               <p class="mt-1">{{ (profile as any).org_country ? COUNTRY_OPTIONS.find(c => c.value === (profile as any).org_country)?.label || (profile as any).org_country : '-' }}</p>
@@ -81,14 +81,14 @@
         </section>
 
         <!-- Billing section -->
-        <section class="space-y-4">
+        <section class="space-y-4 mt-6 sm:mt-8">
           <div class="border-t border-gray-700" />
           <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold">Billing Address</h3>
+            <h3 class="text-base sm:text-lg font-semibold">Billing Address</h3>
           </div>
           <div class="border-t border-gray-700" />
 
-          <div v-if="hasBillingAddress" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div v-if="hasBillingAddress" class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             <div>
               <p class="text-xs text-gray-400">Address line 1</p>
               <p class="mt-1">{{ profile.billing_address?.address_line1 || '-' }}</p>
@@ -125,9 +125,9 @@
         <UForm ref="formRef" :schema="schema" :state="state" @submit="onSubmit">
           <!-- Profile section -->
           <section class="space-y-4">
-            <h3 class="text-lg font-semibold">Profile Details</h3>
+            <h3 class="text-base sm:text-lg font-semibold">Profile Details</h3>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
               <UFormGroup name="name" label="Full name" required>
                 <UInput
                   v-model="state.name"
@@ -176,14 +176,14 @@
           </section>
 
           <!-- Organization Details section -->
-          <section class="space-y-4 mt-8">
+          <section class="space-y-4 mt-6 sm:mt-8">
             <div class="border-t border-gray-700" />
             <div class="flex items-center justify-between">
-              <h3 class="text-lg font-semibold">Organization Details</h3>
+              <h3 class="text-base sm:text-lg font-semibold">Organization Details</h3>
             </div>
             <div class="border-t border-gray-700" />
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
               <UFormGroup name="org_country" label="Country" required>
                 <USelect
                   icon="i-heroicons-globe-alt"
@@ -212,14 +212,14 @@
           </section>
 
           <!-- Billing section -->
-          <section class="space-y-4 mt-8">
+          <section class="space-y-4 mt-6 sm:mt-8">
             <div class="border-t border-gray-700" />
             <div class="flex items-center justify-between">
-              <h3 class="text-lg font-semibold">Billing Address</h3>
+              <h3 class="text-base sm:text-lg font-semibold">Billing Address</h3>
             </div>
             <div class="border-t border-gray-700" />
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
               <UFormGroup name="address_line1" label="Address line 1" required>
                 <UInput
                   v-model="state.address_line1"
