@@ -19,6 +19,9 @@ export default defineNuxtConfig({
       chargebeePublishableKey: process.env.NUXT_PUBLIC_CHARGEBEE_PUBLISHABLE_KEY,
       apiBase: process.env.API_BASE_URL || '/api',
       awsMarketplaceLink: process.env.NUXT_PUBLIC_AWS_MARKETPLACE_LINK || '',
+      // Umami Analytics
+      umamiHost: process.env.NUXT_PUBLIC_UMAMI_HOST || '',
+      umamiWebsiteId: process.env.NUXT_PUBLIC_UMAMI_WEBSITE_ID || '',
     },
     dbUser: process.env.NUXT_DB_USER,
     dbPassword: process.env.NUXT_DB_PASSWORD,
@@ -56,7 +59,12 @@ export default defineNuxtConfig({
 
   vite: {
     ssr: { external: ['@headlessui/vue'] },
-    optimizeDeps: { exclude: ['@headlessui/vue'] }
+    optimizeDeps: { exclude: ['@headlessui/vue'] },
+    server: {
+      allowedHosts: [
+        'eufemia-umbiliform-ardelle.ngrok-free.dev'
+      ]
+    }
   },
 
   build: {
@@ -69,7 +77,7 @@ export default defineNuxtConfig({
   },
 
   // Modules
-  modules: ['@nuxt/ui', '@nuxt/icon', '@pinia/nuxt', '@nuxtjs/tailwindcss'],
+  modules: ['@nuxt/ui', '@nuxt/icon', '@pinia/nuxt', '@nuxtjs/tailwindcss', 'nuxt-umami'],
 
   // CSS
   css: ['~/assets/css/main.css'],
@@ -108,6 +116,26 @@ export default defineNuxtConfig({
   tailwindcss: {
     cssPath: '~/assets/css/tailwind.css',
     configPath: 'tailwind.config.ts',
+  },
+
+  // UMAMI Analytics
+  umami: {
+    id: process.env.NUXT_PUBLIC_UMAMI_ID || 'my-w3b517e-id',
+    host: process.env.NUXT_PUBLIC_UMAMI_HOST || 'https://my-umami.xyz',
+    autoTrack: true,
+    // enabled: false,
+    // useDirective: true,
+    // ignoreLocalhost: true,
+    // domains: ['cool-site.app', 'my-space.site'],
+    // urlOptions: {
+    //   trailingSlash: 'always',
+    //   excludeSearch: false,
+    //   excludeHash: false,
+    // },
+    // proxy: 'cloak',
+    // logErrors: true,
+    // customEndpoint: '/my-custom-endpoint',
+    // tag: 'website-variation-123',
   },
 
   // Nitro (Server)
