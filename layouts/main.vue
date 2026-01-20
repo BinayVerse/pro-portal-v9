@@ -6,11 +6,7 @@
         <div class="flex justify-between items-center h-16">
           <!-- Logo and brand -->
           <NuxtLink to="/" class="flex items-center space-x-2 lg:space-x-3 flex-shrink-0">
-            <img
-              src="~/assets/media/logo.svg"
-              alt="Provento Logo"
-              class="w-7 h-7 md:w-8 md:h-8"
-            />
+            <img src="~/assets/media/logo.svg" alt="Provento Logo" class="w-7 h-7 md:w-8 md:h-8" />
             <span class="text-white text-base sm:text-lg md:text-xl font-semibold"
               >provento.ai</span
             >
@@ -354,6 +350,7 @@
 </template>
 
 <script setup lang="ts">
+import { industries } from '~/utils/index'
 const showFeatures = ref(false)
 const showSolutions = ref(false)
 const mobileMenuOpen = ref(false)
@@ -456,15 +453,4 @@ const features = ref(
     { name: 'Data Privacy', slug: 'data-privacy', disabled: false },
   ].filter((feature) => feature.slug && feature.name),
 )
-
-const industries = [
-  { name: 'Finance & Banking', slug: 'finance-banking' },
-  { name: 'Healthcare', slug: 'healthcare' },
-  { name: 'Real Estate', slug: 'real-estate' },
-  { name: 'Insurance', slug: 'insurance' },
-  { name: 'Legal', slug: 'legal' },
-  { name: 'Manufacturing', slug: 'manufacturing' },
-  { name: 'Education', slug: 'education' },
-  { name: 'Government', slug: 'government' },
-]
 </script>
