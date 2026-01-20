@@ -460,8 +460,7 @@ const features = ref(
   [
     { name: 'Use Cases', slug: 'use-cases', disabled: false },
     { name: 'How It Works', slug: 'how-it-works', disabled: false },
-    { name: 'Security', slug: 'security', disabled: true },
-    { name: 'Customer Stories', slug: 'customer-stories', disabled: true },
+    { name: 'Data Privacy', slug: 'data-privacy', disabled: false },
   ].filter((feature) => feature.slug && feature.name),
 )
 

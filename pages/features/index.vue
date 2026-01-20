@@ -42,7 +42,9 @@
             :key="feature.slug"
             class="bg-dark-800 border border-dark-700 rounded-xl p-6 hover:bg-dark-700 transition-all duration-200"
           >
-            <div class="w-12 h-12 bg-primary-500/20 rounded-lg flex items-center justify-center mb-4">
+            <div
+              class="w-12 h-12 bg-primary-500/20 rounded-lg flex items-center justify-center mb-4"
+            >
               <UIcon :name="feature.icon" class="w-6 h-6 text-primary-400" />
             </div>
             <h3 class="text-xl font-semibold text-white mb-3">{{ feature.name }}</h3>
@@ -58,10 +60,13 @@
         </div>
 
         <!-- CTA Section -->
-        <div class="mt-20 text-center bg-gradient-to-r from-primary-900/20 to-primary-800/20 rounded-xl p-16">
+        <div
+          class="mt-20 text-center bg-gradient-to-r from-primary-900/20 to-primary-800/20 rounded-xl p-16"
+        >
           <h2 class="text-3xl font-bold text-white mb-4">Ready to Experience These Features?</h2>
           <p class="text-xl text-gray-300 mb-12">
-            Join thousands of teams already using provento.ai to transform their artifacts workflows.
+            Join thousands of teams already using provento.ai to transform their artifacts
+            workflows.
           </p>
           <div class="flex flex-col sm:flex-row gap-4 justify-center">
             <NuxtLink to="/book-meeting" class="btn-primary text-lg px-8 py-4">
@@ -87,13 +92,30 @@ interface Feature {
 }
 
 const features: Feature[] = [
-  { name: 'Use Cases', slug: 'use-cases', disabled: false, icon: 'i-heroicons-light-bulb', shortDescription: 'Explore real-world applications and scenarios' },
-  { name: 'How It Works', slug: 'how-it-works', disabled: false, icon: 'i-heroicons-cog-6-tooth', shortDescription: 'Learn about our technology and processes' },
-  { name: 'Security', slug: 'security', disabled: true, icon: 'i-heroicons-shield-check', shortDescription: 'Enterprise-grade security features' },
-  { name: 'Customer Stories', slug: 'customer-stories', disabled: true, icon: 'i-heroicons-user-group', shortDescription: 'Success stories from our customers' },
+  {
+    name: 'Use Cases',
+    slug: 'use-cases',
+    disabled: false,
+    icon: 'i-heroicons-light-bulb',
+    shortDescription: 'Explore real-world applications and scenarios',
+  },
+  {
+    name: 'How It Works',
+    slug: 'how-it-works',
+    disabled: false,
+    icon: 'i-heroicons-cog-6-tooth',
+    shortDescription: 'Learn about our technology and processes',
+  },
+  {
+    name: 'Data Privacy',
+    slug: 'data-privacy',
+    disabled: false,
+    icon: 'i-heroicons-shield-check',
+    shortDescription: 'Data privacy and compliance information',
+  },
 ]
 
-const enabledFeatures = computed(() => features.filter(f => !f.disabled))
+const enabledFeatures = computed(() => features.filter((f) => !f.disabled))
 
 useHead({
   title: 'Features - provento.ai',
