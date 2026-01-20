@@ -9,7 +9,7 @@ export function escapeHtml(unsafe: string) {
 }
 
 function applyInlineFormatting(text: string) {
-  return text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+  return text.replace(/(\*\*|\*)(.+?)\1/g, '<strong>$2</strong>')
 }
 
 
