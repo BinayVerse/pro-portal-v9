@@ -50,284 +50,252 @@
           <UIcon name="heroicons:chat-bubble-left-ellipsis" class="w-6 h-6" />
         </button>
       </div>
-
+    </div>
+    <div
+      v-if="open"
+      ref="chatWindowRef"
+      class="absolute sm:fixed left-0 right-0 bottom-0 sm:left-auto sm:top-auto sm:bottom-auto sm:right-0 w-full sm:w-96 sm:h-[520px] bg-dark-900 border border-dark-700 rounded-none sm:rounded-xl shadow-xl flex flex-col"
+      :style="chatWindowStyle"
+      style="z-index: 1000000"
+    >
       <div
-        ref="chatWindowRef"
-        v-else
-        class="fixed left-0 top-16 right-0 bottom-0 sm:left-auto sm:top-auto sm:bottom-auto sm:right-0 w-full sm:w-96 sm:h-[520px] bg-dark-900 border border-dark-700 rounded-none sm:rounded-xl shadow-xl flex flex-col"
-        :style="chatWindowStyle"
+        class="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 border-b border-dark-700"
       >
-        <div
-          class="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 border-b border-dark-700"
-        >
-          <div class="flex items-center space-x-2 sm:space-x-3">
+        <div class="flex items-center space-x-2 sm:space-x-3">
+          <UIcon
+            name="heroicons:chat-bubble-left-ellipsis"
+            class="w-4 sm:w-5 md:w-6 h-4 sm:h-5 md:h-6 text-white flex-shrink-0"
+          />
+          <div class="text-white font-medium text-base sm:text-lg truncate">provento.ai</div>
+        </div>
+
+        <div class="flex items-center space-x-1 sm:space-x-2">
+          <button
+            @click="onToggleHistory"
+            :aria-pressed="showHistory"
+            class="flex items-center gap-2 px-2 sm:px-3 md:px-4 py-1 md:py-2 rounded-md bg-dark-800 hover:bg-dark-700 text-xs sm:text-sm md:text-base text-gray-200 border border-transparent focus:outline-none"
+            :title="historyLabel"
+          >
             <UIcon
-              name="heroicons:chat-bubble-left-ellipsis"
-              class="w-4 sm:w-5 md:w-6 h-4 sm:h-5 md:h-6 text-white flex-shrink-0"
+              :name="historyIcon"
+              class="w-3.5 sm:w-4 md:w-5 h-3.5 sm:h-4 md:h-5 text-primary-400 flex-shrink-0"
             />
-            <div class="text-white font-medium text-base sm:text-lg truncate">provento.ai</div>
+            <span class="hidden sm:inline">{{ historyLabel }}</span>
+          </button>
+
+          <button
+            v-if="!showHistory"
+            @click="clearConversation"
+            class="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-md text-gray-300 hover:bg-dark-800 border border-dark-700"
+            title="Clear conversation"
+            aria-label="Clear conversation"
+          >
+            <UIcon name="heroicons:trash" class="w-3.5 sm:w-4 md:w-5 h-3.5 sm:h-4 md:h-5" />
+          </button>
+
+          <button
+            @click="close"
+            aria-label="Close chat"
+            class="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-md text-gray-300 hover:text-white flex items-center justify-center"
+          >
+            <UIcon name="heroicons:x-mark" class="w-3.5 sm:w-4 md:w-5 h-3.5 sm:h-4 md:h-5" />
+          </button>
+        </div>
+      </div>
+
+      <div class="flex-1 bg-black flex flex-col min-h-0">
+        <div v-if="showHistory" class="flex-1 p-2 sm:p-4 flex flex-col min-h-0">
+          <div class="flex items-center justify-between mb-2 sm:mb-3">
+            <div class="text-xs sm:text-sm md:text-base text-gray-300 font-semibold">Recent</div>
+            <div class="text-sm sm:text-base text-gray-400">
+              {{ (conversations || []).length }}
+            </div>
           </div>
 
-          <div class="flex items-center space-x-1 sm:space-x-2">
-            <button
-              @click="onToggleHistory"
-              :aria-pressed="showHistory"
-              class="flex items-center gap-2 px-2 sm:px-3 md:px-4 py-1 md:py-2 rounded-md bg-dark-800 hover:bg-dark-700 text-xs sm:text-sm md:text-base text-gray-200 border border-transparent focus:outline-none"
-              :title="historyLabel"
-            >
-              <UIcon
-                :name="historyIcon"
-                class="w-3.5 sm:w-4 md:w-5 h-3.5 sm:h-4 md:h-5 text-primary-400 flex-shrink-0"
-              />
-              <span class="hidden sm:inline">{{ historyLabel }}</span>
-            </button>
+          <div v-if="historyLoading" class="text-sm sm:text-base text-gray-400">Loading...</div>
 
-            <button
-              v-if="!showHistory"
-              @click="clearConversation"
-              class="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-md text-gray-300 hover:bg-dark-800 border border-dark-700"
-              title="Clear conversation"
-              aria-label="Clear conversation"
+          <div v-else class="flex-1 overflow-auto min-h-0">
+            <div
+              v-if="conversations.length === 0"
+              class="text-xs sm:text-sm md:text-base text-gray-500"
             >
-              <UIcon name="heroicons:trash" class="w-3.5 sm:w-4 md:w-5 h-3.5 sm:h-4 md:h-5" />
-            </button>
+              No conversations found
+            </div>
 
-            <button
-              @click="close"
-              aria-label="Close chat"
-              class="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-md text-gray-300 hover:text-white flex items-center justify-center"
-            >
-              <UIcon name="heroicons:x-mark" class="w-3.5 sm:w-4 md:w-5 h-3.5 sm:h-4 md:h-5" />
-            </button>
+            <div class="space-y-2 pr-1 sm:pr-2">
+              <div
+                v-for="(c, i) in conversations"
+                :key="c.chat_id || i"
+                @click="openConversation(c.chat_id)"
+                role="button"
+                tabindex="0"
+                @keyup.enter="openConversation(c.chat_id)"
+                class="relative bg-dark-800 rounded-md p-2 sm:p-3 md:p-4 hover:bg-dark-700 transition-colors cursor-pointer"
+              >
+                <div class="flex items-start space-x-2 sm:space-x-3">
+                  <div
+                    class="flex-shrink-0 w-6 sm:w-8 md:w-10 h-6 sm:h-8 md:h-10 rounded-full bg-primary-700 flex items-center justify-center text-white font-bold"
+                  >
+                    <UIcon
+                      name="heroicons:document-text"
+                      class="w-3 sm:w-4 md:w-5 h-3 sm:h-4 md:h-5"
+                    />
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div
+                      class="text-sm sm:text-base text-gray-200 font-medium truncate"
+                      :title="c.header"
+                    >
+                      {{ c.header }}
+                    </div>
+                    <div
+                      class="mt-1 sm:mt-2 text-xs sm:text-sm md:text-base text-gray-400"
+                      :title="formatPreview(c.body, 200, true)"
+                      style="
+                        display: -webkit-box;
+                        -webkit-line-clamp: 2;
+                        line-clamp: 2;
+                        -webkit-box-orient: vertical;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                      "
+                    >
+                      {{ formatPreview(c.body) }}
+                    </div>
+                    <div
+                      class="mt-1 sm:mt-2 text-xs sm:text-sm md:text-base text-gray-400 text-right"
+                    >
+                      {{ c.last_at_formatted || c.last_at }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="flex-1 bg-black flex flex-col min-h-0">
-          <div v-if="showHistory" class="flex-1 p-2 sm:p-4 flex flex-col min-h-0">
-            <div class="flex items-center justify-between mb-2 sm:mb-3">
-              <div class="text-xs sm:text-sm md:text-base text-gray-300 font-semibold">Recent</div>
-              <div class="text-sm sm:text-base text-gray-400">
-                {{ (conversations || []).length }}
-              </div>
-            </div>
-
-            <div v-if="historyLoading" class="text-sm sm:text-base text-gray-400">Loading...</div>
-
-            <div v-else class="flex-1 overflow-auto min-h-0">
-              <div
-                v-if="conversations.length === 0"
-                class="text-xs sm:text-sm md:text-base text-gray-500"
-              >
-                No conversations found
-              </div>
-
-              <div class="space-y-2 pr-1 sm:pr-2">
-                <div
-                  v-for="(c, i) in conversations"
-                  :key="c.chat_id || i"
-                  @click="openConversation(c.chat_id)"
-                  role="button"
-                  tabindex="0"
-                  @keyup.enter="openConversation(c.chat_id)"
-                  class="relative bg-dark-800 rounded-md p-2 sm:p-3 md:p-4 hover:bg-dark-700 transition-colors cursor-pointer"
-                >
-                  <div class="flex items-start space-x-2 sm:space-x-3">
-                    <div
-                      class="flex-shrink-0 w-6 sm:w-8 md:w-10 h-6 sm:h-8 md:h-10 rounded-full bg-primary-700 flex items-center justify-center text-white font-bold"
-                    >
-                      <UIcon
-                        name="heroicons:document-text"
-                        class="w-3 sm:w-4 md:w-5 h-3 sm:h-4 md:h-5"
-                      />
-                    </div>
-                    <div class="flex-1 min-w-0">
-                      <div
-                        class="text-sm sm:text-base text-gray-200 font-medium truncate"
-                        :title="c.header"
-                      >
-                        {{ c.header }}
-                      </div>
-                      <div
-                        class="mt-1 sm:mt-2 text-xs sm:text-sm md:text-base text-gray-400"
-                        :title="c.body"
-                        style="
-                          display: -webkit-box;
-                          -webkit-line-clamp: 2;
-                          line-clamp: 2;
-                          -webkit-box-orient: vertical;
-                          overflow: hidden;
-                          text-overflow: ellipsis;
-                        "
-                      >
-                        {{ c.body }}
-                      </div>
-                      <div
-                        class="mt-1 sm:mt-2 text-xs sm:text-sm md:text-base text-gray-400 text-right"
-                      >
-                        {{ c.last_at_formatted || c.last_at }}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
+        <div
+          v-else
+          ref="scrollArea"
+          class="flex-1 overflow-auto p-2 sm:p-4 space-y-3 sm:space-y-4 bg-black min-h-0"
+        >
           <div
-            v-else
-            ref="scrollArea"
-            class="flex-1 overflow-auto p-2 sm:p-4 space-y-3 sm:space-y-4 bg-black min-h-0"
+            v-if="messages.length === 0 && !loading"
+            class="w-full text-center text-xs sm:text-sm md:text-base text-gray-400"
           >
-            <div
-              v-if="messages.length === 0 && !loading"
-              class="w-full text-center text-xs sm:text-sm md:text-base text-gray-400"
-            >
-              Feel free to ask anything about the artifacts you’ve uploaded.
-            </div>
-            <div v-for="(m, idx) in messages" :key="idx" class="w-full">
-              <div v-if="m.from === 'user'" class="text-right flex justify-end">
-                <div
-                  class="bg-primary-600 text-white px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 rounded-lg text-xs sm:text-sm md:text-base max-w-[80%]"
-                >
-                  {{ m.content }}
-                </div>
-              </div>
-
+            Feel free to ask anything about the artifacts you’ve uploaded.
+          </div>
+          <div v-for="(m, idx) in messages" :key="idx" class="w-full">
+            <div v-if="m.from === 'user'" class="text-right flex justify-end">
               <div
-                v-else-if="isUsageLimitMessage(m.content)"
-                class="bg-dark-800 border border-yellow-500 text-yellow-300 px-3 sm:px-4 md:px-5 py-2 sm:py-3 md:py-4 rounded-md text-xs sm:text-sm md:text-base"
+                class="bg-primary-600 text-white px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 rounded-lg text-xs sm:text-sm md:text-base max-w-[80%]"
               >
                 {{ m.content }}
               </div>
+            </div>
 
-              <div v-else class="text-left flex justify-start">
-                <div
-                  class="bg-dark-800 text-gray-200 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 rounded-lg text-sm sm:text-base max-w-[80%]"
-                >
-                  <!-- Agent / Category List -->
-                  <div v-if="m.meta && m.meta.type === 'agent_list'">
-                    <div class="font-medium mb-2 text-xs sm:text-sm md:text-base">
-                      Which AI Agent would you like to start with?
-                    </div>
-                    <div class="flex flex-wrap gap-1.5 sm:gap-2">
-                      <button
-                        v-for="cat in m.meta.categories"
-                        :key="cat.id"
-                        @click="onSelectCategory(cat, m)"
-                        :disabled="m.meta.disabled"
-                        :class="[
-                          'px-2 sm:px-3 md:px-4 py-1 md:py-2 text-xs sm:text-sm md:text-base rounded-md border flex items-center',
-                          m.meta.disabled
-                            ? 'bg-dark-900 text-gray-500 border-dark-700 cursor-not-allowed'
-                            : 'bg-dark-700 hover:bg-dark-600 border-dark-600',
-                          cat && (cat.selected === true || cat.selected === 'true')
-                            ? 'ring-2 ring-primary-500 bg-primary-700 text-white'
-                            : '',
-                        ]"
-                      >
-                        <span class="block w-full truncate max-w-[140px] sm:max-w-[220px]">{{
-                          decodeHtml(cat.name)
-                        }}</span>
-                      </button>
-                      <button
-                        v-if="m.meta.hasMore"
-                        @click="onShowMoreAgents(m)"
-                        :disabled="m.meta.moreDisabled"
-                        :class="[
-                          'px-2 sm:px-3 md:px-4 py-1 md:py-2 text-xs sm:text-sm md:text-base rounded-md border',
-                          m.meta.moreDisabled
-                            ? 'bg-dark-900 text-gray-500 cursor-not-allowed'
-                            : 'bg-dark-700 hover:bg-dark-600 border-dark-600',
-                        ]"
-                      >
-                        More
-                      </button>
-                    </div>
+            <div
+              v-else-if="isUsageLimitMessage(m.content)"
+              class="bg-dark-800 border border-yellow-500 text-yellow-300 px-3 sm:px-4 md:px-5 py-2 sm:py-3 md:py-4 rounded-md text-xs sm:text-sm md:text-base"
+            >
+              {{ m.content }}
+            </div>
+
+            <div v-else class="text-left flex justify-start">
+              <div
+                class="bg-dark-800 text-gray-200 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 rounded-lg text-sm sm:text-base max-w-[80%]"
+              >
+                <!-- Agent / Category List -->
+                <div v-if="m.meta && m.meta.type === 'agent_list'">
+                  <div class="font-medium mb-2 text-xs sm:text-sm md:text-base">
+                    Which AI Agent would you like to start with?
                   </div>
+                  <div class="flex flex-wrap gap-1.5 sm:gap-2">
+                    <button
+                      v-for="cat in m.meta.categories"
+                      :key="cat.id"
+                      @click="onSelectCategory(cat, m)"
+                      :disabled="m.meta.disabled"
+                      :class="[
+                        'px-2 sm:px-3 md:px-4 py-1 md:py-2 text-xs sm:text-sm md:text-base rounded-md border flex items-center',
+                        m.meta.disabled
+                          ? 'bg-dark-900 text-gray-500 border-dark-700 cursor-not-allowed'
+                          : 'bg-dark-700 hover:bg-dark-600 border-dark-600',
+                        cat && (cat.selected === true || cat.selected === 'true')
+                          ? 'ring-2 ring-primary-500 bg-primary-700 text-white'
+                          : '',
+                      ]"
+                    >
+                      <span class="block w-full truncate max-w-[140px] sm:max-w-[220px]">{{
+                        decodeHtml(cat.name)
+                      }}</span>
+                    </button>
+                    <button
+                      v-if="m.meta.hasMore"
+                      @click="onShowMoreAgents(m)"
+                      :disabled="m.meta.moreDisabled"
+                      :class="[
+                        'px-2 sm:px-3 md:px-4 py-1 md:py-2 text-xs sm:text-sm md:text-base rounded-md border',
+                        m.meta.moreDisabled
+                          ? 'bg-dark-900 text-gray-500 cursor-not-allowed'
+                          : 'bg-dark-700 hover:bg-dark-600 border-dark-600',
+                      ]"
+                    >
+                      More
+                    </button>
+                  </div>
+                </div>
 
-                  <!-- Document List -->
-                  <div v-else-if="m.meta && m.meta.type === 'document_list'">
-                    <div class="font-medium mb-2">
-                      {{ getDocumentListPrompt(m) }}
+                <!-- Document List -->
+                <div v-else-if="m.meta && m.meta.type === 'document_list'">
+                  <div class="font-medium mb-2">
+                    {{ getDocumentListPrompt(m) }}
+                  </div>
+                  <!-- Commented document listing as per category -->
+                  <!-- <div class="flex flex-col gap-2">
+                    <div v-if="m.meta.noDocuments" class="text-sm text-gray-400">
+                      No knowledge base found for this AI agent.
                     </div>
-                    <!-- Commented document listing as per category -->
-                    <!-- <div class="flex flex-col gap-2">
-                      <div v-if="m.meta.noDocuments" class="text-sm text-gray-400">
-                        No knowledge base found for this AI agent.
-                      </div>
 
-                      <button
-                        v-for="doc in m.meta.documents"
-                        :key="doc.id"
-                        @click="onSelectDocument(doc)"
-                        :disabled="m.meta.disabled"
-                        :class="[
-                          'text-left px-3 py-2 rounded-md border flex flex-col items-start',
-                          m.meta.disabled
-                            ? 'bg-dark-900 text-gray-500 border-dark-700 cursor-not-allowed'
-                            : 'bg-dark-700 hover:bg-dark-600 border-dark-600',
-                          doc && (doc.selected === true || doc.selected === 'true')
-                            ? 'ring-2 ring-primary-500 bg-primary-700 text-white'
-                            : '',
-                        ]"
-                      >
-                        <div
-                          class="font-medium text-sm w-full truncate max-w-[240px] sm:max-w-[360px]"
-                        >
-                          {{ decodeHtml(doc.name) }}
-                        </div>
-                      </button>
-
-                      <button
-                        v-if="m.meta.hasMore"
-                        @click="onShowMoreDocuments(m)"
-                        :disabled="m.meta.moreDisabled"
-                        :class="[
-                          'px-3 py-1 text-sm rounded-md border',
-                          m.meta.moreDisabled
-                            ? 'bg-dark-900 text-gray-500 cursor-not-allowed'
-                            : 'bg-dark-700 hover:bg-dark-600 border-dark-600',
-                        ]"
-                      >
-                        More
-                      </button>
-
+                    <button
+                      v-for="doc in m.meta.documents"
+                      :key="doc.id"
+                      @click="onSelectDocument(doc)"
+                      :disabled="m.meta.disabled"
+                      :class="[
+                        'text-left px-3 py-2 rounded-md border flex flex-col items-start',
+                        m.meta.disabled
+                          ? 'bg-dark-900 text-gray-500 border-dark-700 cursor-not-allowed'
+                          : 'bg-dark-700 hover:bg-dark-600 border-dark-600',
+                        doc && (doc.selected === true || doc.selected === 'true')
+                          ? 'ring-2 ring-primary-500 bg-primary-700 text-white'
+                          : '',
+                      ]"
+                    >
                       <div
-                        v-if="
-                          m.meta.actions && m.meta.actions.length && idx === messages.length - 1
-                        "
-                        class="flex flex-wrap gap-1.5 sm:gap-2 mt-2"
+                        class="font-medium text-sm w-full truncate max-w-[240px] sm:max-w-[360px]"
                       >
-                        <button
-                          v-for="a in m.meta.actions"
-                          :key="a.id"
-                          @click.prevent="onActionClick(a.id)"
-                          class="px-2 sm:px-3 md:px-4 py-1 md:py-2 bg-dark-700 hover:bg-dark-600 text-xs sm:text-sm md:text-base rounded-md border border-dark-600"
-                        >
-                          {{ a.label }}
-                        </button>
+                        {{ decodeHtml(doc.name) }}
                       </div>
-                    </div> -->
-                  </div>
+                    </button>
 
-                  <!-- Document summary or default bot message -->
-                  <div v-else>
-                    <div
-                      v-html="
-                        isUsageLimitMessage(m.content)
-                          ? m.content
-                          : m.contentHtml || formatResponseToHtml(m.content)
-                      "
-                    ></div>
+                    <button
+                      v-if="m.meta.hasMore"
+                      @click="onShowMoreDocuments(m)"
+                      :disabled="m.meta.moreDisabled"
+                      :class="[
+                        'px-3 py-1 text-sm rounded-md border',
+                        m.meta.moreDisabled
+                          ? 'bg-dark-900 text-gray-500 cursor-not-allowed'
+                          : 'bg-dark-700 hover:bg-dark-600 border-dark-600',
+                      ]"
+                    >
+                      More
+                    </button>
 
-                    <!-- Actions for summaries (only on last message) -->
                     <div
                       v-if="
-                        m.meta &&
-                        m.meta.type === 'document_summary' &&
-                        m.meta.actions &&
-                        m.meta.actions.length &&
-                        idx === messages.length - 1
+                        m.meta.actions && m.meta.actions.length && idx === messages.length - 1
                       "
                       class="flex flex-wrap gap-1.5 sm:gap-2 mt-2"
                     >
@@ -340,90 +308,122 @@
                         {{ a.label }}
                       </button>
                     </div>
+                  </div> -->
+                </div>
 
-                    <div
-                      v-if="m.links && m.links.length"
-                      class="mt-2 text-xs sm:text-sm md:text-base"
+                <!-- Document summary or default bot message -->
+                <div v-else>
+                  <div
+                    v-html="
+                      isUsageLimitMessage(m.content)
+                        ? m.content
+                        : m.contentHtml || formatResponseToHtml(m.content)
+                    "
+                  ></div>
+
+                  <!-- Actions for summaries (only on last message) -->
+                  <div
+                    v-if="
+                      m.meta &&
+                      m.meta.type === 'document_summary' &&
+                      m.meta.actions &&
+                      m.meta.actions.length &&
+                      idx === messages.length - 1
+                    "
+                    class="flex flex-wrap gap-1.5 sm:gap-2 mt-2"
+                  >
+                    <button
+                      v-for="a in m.meta.actions"
+                      :key="a.id"
+                      @click.prevent="onActionClick(a.id)"
+                      class="px-2 sm:px-3 md:px-4 py-1 md:py-2 bg-dark-700 hover:bg-dark-600 text-xs sm:text-sm md:text-base rounded-md border border-dark-600"
                     >
-                      <div v-for="(l, i) in m.links" :key="i">
-                        <a
-                          :href="l.url"
-                          target="_blank"
-                          class="text-primary-400 underline break-words"
-                          >{{ l.text || l.url }}</a
-                        >
-                      </div>
+                      {{ a.label }}
+                    </button>
+                  </div>
+
+                  <div
+                    v-if="m.links && m.links.length"
+                    class="mt-2 text-xs sm:text-sm md:text-base"
+                  >
+                    <div v-for="(l, i) in m.links" :key="i">
+                      <a
+                        :href="l.url"
+                        target="_blank"
+                        class="text-primary-400 underline break-words"
+                        >{{ l.text || l.url }}</a
+                      >
+                    </div>
+                  </div>
+                  <div
+                    v-if="m.citations && m.citations.length"
+                    class="mt-2 text-xs sm:text-sm md:text-base text-gray-400"
+                  >
+                    <div class="font-semibold text-gray-300 text-xs sm:text-sm md:text-base">
+                      Source:
                     </div>
                     <div
-                      v-if="m.citations && m.citations.length"
-                      class="mt-2 text-xs sm:text-sm md:text-base text-gray-400"
+                      v-for="(c, i) in m.citations"
+                      :key="i"
+                      class="text-xs sm:text-sm md:text-base truncate"
                     >
-                      <div class="font-semibold text-gray-300 text-xs sm:text-sm md:text-base">
-                        Source:
-                      </div>
-                      <div
-                        v-for="(c, i) in m.citations"
-                        :key="i"
-                        class="text-xs sm:text-sm md:text-base truncate"
-                      >
-                        {{ c }}
-                      </div>
+                      {{ c }}
                     </div>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
 
-            <div v-if="loading" class="text-left text-xs sm:text-sm md:text-base text-gray-400">
-              thinking...
-            </div>
+          <div v-if="loading" class="text-left text-xs sm:text-sm md:text-base text-gray-400">
+            thinking...
           </div>
         </div>
+      </div>
 
-        <form
-          v-if="!showHistory"
-          @submit.prevent="sendMessageLocal"
-          class="px-2 sm:px-3 md:px-4 py-2 sm:py-3 md:py-4 border-t border-dark-700 bg-dark-900"
-        >
-          <div class="flex items-center space-x-1.5 sm:space-x-2">
-            <input
-              v-model="input"
-              @input="onUserTyping"
-              placeholder="Ask me..."
-              class="flex-1 bg-dark-800 text-gray-200 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 rounded-md text-sm sm:text-base outline-none focus:ring-2 focus:ring-primary-500"
-            />
-            <button
-              :disabled="!canSend || loading || usageLimitReached"
-              :title="usageLimitReached ? 'Plan usage limit reached — upgrade required' : ''"
-              type="submit"
-              :class="[
-                'btn-primary px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-xs sm:text-sm md:text-base flex-shrink-0 whitespace-nowrap',
-                !canSend || loading ? 'opacity-50 cursor-not-allowed' : '',
-              ]"
-            >
-              {{ loading ? '...' : 'Send' }}
-            </button>
-          </div>
-        </form>
-
-        <!-- Resize handles (only visible on sm and above) - left, top, and top-left only -->
-        <div v-if="isResizeEnabled" class="hidden sm:block">
-          <!-- Top-left corner -->
-          <div
-            @mousedown="startResize($event, 'nw')"
-            class="absolute top-0 left-0 w-3 h-3 cursor-nwse-resize hover:bg-primary-500 hover:opacity-75 z-10"
+      <form
+        v-if="!showHistory"
+        @submit.prevent="sendMessageLocal"
+        class="px-2 sm:px-3 md:px-4 py-2 sm:py-3 md:py-4 border-t border-dark-700 bg-dark-900"
+      >
+        <div class="flex items-center space-x-1.5 sm:space-x-2">
+          <input
+            v-model="input"
+            @input="onUserTyping"
+            placeholder="Ask me..."
+            class="flex-1 bg-dark-800 text-gray-200 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 rounded-md text-sm sm:text-base outline-none focus:ring-2 focus:ring-primary-500"
           />
-          <!-- Top edge -->
-          <div
-            @mousedown="startResize($event, 'n')"
-            class="absolute top-0 left-3 right-0 h-1 cursor-ns-resize hover:bg-primary-500 hover:opacity-75 z-10"
-          />
-          <!-- Left edge -->
-          <div
-            @mousedown="startResize($event, 'w')"
-            class="absolute top-3 bottom-0 left-0 w-1 cursor-ew-resize hover:bg-primary-500 hover:opacity-75 z-10"
-          />
+          <button
+            :disabled="!canSend || loading || usageLimitReached"
+            :title="usageLimitReached ? 'Plan usage limit reached — upgrade required' : ''"
+            type="submit"
+            :class="[
+              'btn-primary px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-3 text-xs sm:text-sm md:text-base flex-shrink-0 whitespace-nowrap',
+              !canSend || loading ? 'opacity-50 cursor-not-allowed' : '',
+            ]"
+          >
+            {{ loading ? '...' : 'Send' }}
+          </button>
         </div>
+      </form>
+
+      <!-- Resize handles (only visible on sm and above) - left, top, and top-left only -->
+      <div v-if="isResizeEnabled" class="hidden sm:block">
+        <!-- Top-left corner -->
+        <div
+          @mousedown="startResize($event, 'nw')"
+          class="absolute top-0 left-0 w-3 h-3 cursor-nwse-resize hover:bg-primary-500 hover:opacity-75 z-10"
+        />
+        <!-- Top edge -->
+        <div
+          @mousedown="startResize($event, 'n')"
+          class="absolute top-0 left-3 right-0 h-1 cursor-ns-resize hover:bg-primary-500 hover:opacity-75 z-10"
+        />
+        <!-- Left edge -->
+        <div
+          @mousedown="startResize($event, 'w')"
+          class="absolute top-3 bottom-0 left-0 w-1 cursor-ew-resize hover:bg-primary-500 hover:opacity-75 z-10"
+        />
       </div>
     </div>
   </teleport>
@@ -464,6 +464,7 @@ const isResizing = ref(false)
 const resizeDirection = ref<'n' | 'w' | 'nw' | null>(null)
 const resizeStart = ref({ x: 0, y: 0, width: 0, height: 0, top: 0, left: 0 })
 const viewportWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1024)
+const NAVBAR_HEIGHT = 64
 
 // Use CSS overscroll-behavior to contain scroll within chat/history areas and avoid page scroll
 const showHint = ref(true)
@@ -571,12 +572,13 @@ const chatWindowStyle = computed(() => {
   // 📱 Mobile → full screen, no resize
   if (!isResizeEnabled.value) {
     return {
-      top: '64px',
+      position: 'absolute',
+      top: `${NAVBAR_HEIGHT}px`,
       left: '0',
       right: '0',
       bottom: '0',
       width: '100%',
-      height: 'calc(100vh - 64px)',
+      height: 'auto',
     }
   }
 
@@ -811,10 +813,18 @@ async function clearConversation() {
 }
 
 function onOutsideClick(e: MouseEvent) {
-  if (!container.value) return
-  const el = container.value as HTMLElement
   const target = e.target as Node
-  if (!el.contains(target)) {
+
+  const buttonEl = container.value
+  const chatEl = chatWindowRef.value
+
+  // If click is inside chat OR inside button → do nothing
+  if ((chatEl && chatEl.contains(target)) || (buttonEl && buttonEl.contains(target))) {
+    return
+  }
+
+  // Desktop only: outside click closes chat
+  if (isResizeEnabled.value) {
     open.value = false
     showHistory.value = false
   }
@@ -1068,6 +1078,8 @@ watch(isResizeEnabled, async (isDesktop) => {
   // Switching to mobile → reset resize state
   if (!isDesktop) {
     hasBeenResized.value = false
+    isResizing.value = false
+    resizeDirection.value = null
     return
   }
 
@@ -1083,10 +1095,17 @@ watch(isResizeEnabled, async (isDesktop) => {
   windowLeft.value = rect.left
 })
 
+watch(open, (val) => {
+  if (!isResizeEnabled.value) {
+    document.body.style.overflow = val ? 'hidden' : ''
+  }
+})
+
 onBeforeUnmount(() => {
   window.removeEventListener('mousedown', onOutsideClick)
   document.removeEventListener('mousemove', handleMouseMove)
   document.removeEventListener('mouseup', stopResize)
+  document.body.style.overflow = ''
 })
 </script>
 
