@@ -11,247 +11,273 @@
     <aside
       v-if="isClient"
       @click.stop
-      class="fixed lg:fixed left-0 top-16 lg:top-0 h-[calc(100vh-4rem)] lg:h-screen w-64 bg-dark-900 border-r border-dark-700 flex flex-col z-40 transition-transform duration-300"
+      class="fixed lg:fixed left-0 top-16 lg:top-0 h-[calc(100vh-4rem)] lg:h-screen bg-dark-900 border-r border-dark-700 flex flex-col z-40 transition-all duration-300 overflow-visible"
       :class="[
-        'transition-transform duration-300',
+        'transition-all duration-300',
         isMobile || isTablet
           ? sidebarOpen
             ? 'translate-x-0'
             : '-translate-x-full'
           : 'translate-x-0',
+         (isMobile || isTablet) ? 'w-64' : (isCollapsed ? 'w-16 lg:w-16' : 'w-64 lg:w-64')
       ]"
     >
-      <!-- Logo -->
+      <!-- Logo and Toggle -->
       <div
-        class="hidden lg:flex h-16 items-center border-b border-dark-700 flex-none shrink-0 px-4 sm:px-6"
+        class="hidden lg:flex h-16 items-center border-b border-dark-700 flex-none shrink-0 transition-all duration-300"
+        :class="[
+        // CHANGED: Check for mobile/tablet as well
+        (isMobile || isTablet) ? 'justify-between px-4 sm:px-6' : 
+        (isCollapsed ? 'justify-center px-0' : 'justify-between px-4 sm:px-6')
+        ]"
       >
-        <NuxtLink to="/" class="flex items-center space-x-3">
+        <NuxtLink 
+          v-if="!isCollapsed || isMobile || isTablet"
+          to="/" 
+          class="flex items-center space-x-3 min-w-0">
           <img
             src="https://cdn.builder.io/api/v1/image/assets%2Fb2a7382a9c9146babd538ccc60e9d0b5%2Fbddd43caf4614f99a3fbff498927abcc?format=webp&width=800"
             alt="Provento Logo"
-            class="w-8 h-8"
+            class="w-8 h-8 flex-shrink-0"
           />
-          <span class="text-white text-xl font-semibold">provento.ai</span>
+          <span 
+            v-if="!isCollapsed || isMobile || isTablet" 
+            class="text-white text-xl font-semibold truncate transition-opacity duration-300"
+            :class="{ 'opacity-0': isCollapsed && !(isMobile || isTablet) }"
+          >
+            provento.ai
+          </span>
         </NuxtLink>
+        
+        <!-- Desktop Collapse/Expand Toggle -->
+        <button v-if="!isMobile && !isTablet" @click="toggleSidebar"
+          class="h-8 w-8 flex items-center justify-center rounded-md bg-dark-800 hover:bg-dark-700 text-gray-300 hover:text-white transition-colors duration-200 flex-shrink-0"
+          :title="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'">
+          <UIcon :name="isCollapsed ? 'heroicons:chevron-right' : 'heroicons:chevron-left'" class="w-4 h-4" />
+        </button>
+
       </div>
 
       <!-- Admin Navigation -->
-      <nav class="flex-1 p-6 overflow-y-auto">
-        <div class="space-y-2">
+      <nav class="flex-1 p-4 overflow-y-auto overflow-visible">
+        <div class="space-y-1">
           <!-- Dashboard menu -->
           <!-- Show superadmin dashboard when user is superadmin AND no organization selected -->
           <template v-if="auth.user?.role_id === 0 && !showOrganizationMenusForSuperAdmin">
-            <UButton
+            <SidebarButton
               :to="makeOrgLink('/admin/superadmin')"
-              variant="ghost"
-              justify="start"
-              icon="heroicons:shield-check"
-              :color="$route.name === 'admin-superadmin' ? 'primary' : 'gray'"
-              class="w-full"
-            >
-              Dashboard
-            </UButton>
+              :icon="'heroicons:shield-check'"
+              :active="$route.name === 'admin-superadmin' || pendingRoute === 'admin-superadmin'"
+              :collapsed="isMobile || isTablet ? false : isCollapsed"
+              tooltip="Dashboard"
+            />
           </template>
 
           <!-- Organization Admin menu -->
           <template v-if="showOrganizationMenusForSuperAdmin">
-            <UButton
+            <SidebarButton
               :to="makeOrgLink('/admin/dashboard')"
-              variant="ghost"
-              justify="start"
-              icon="heroicons:squares-2x2"
-              :color="$route.name === 'admin-dashboard' ? 'primary' : 'gray'"
-              class="w-full"
+              :icon="'heroicons:squares-2x2'"
+              :active="$route.name === 'admin-dashboard' || pendingRoute === 'admin-dashboard'"
+              :collapsed="isMobile || isTablet ? false : isCollapsed"
               :disabled="!isProfileComplete"
-              :title="
-                isClient && !isProfileComplete
-                  ? 'Complete your profile to access this section'
-                  : null
-              "
-            >
-              Dashboard
-            </UButton>
+              :tooltip="isProfileComplete ? 'Dashboard' : 'Complete your profile to access this section'"
+            />
 
-            <UButton
+            <SidebarButton
               :to="makeOrgLink('/admin/users')"
-              variant="ghost"
-              justify="start"
-              icon="heroicons:users"
-              :color="$route.name === 'admin-users' ? 'primary' : 'gray'"
-              class="w-full"
+              :icon="'heroicons:users'"
+              :active="$route.name === 'admin-users' || pendingRoute === 'admin-users'"
+              :collapsed="isMobile || isTablet ? false : isCollapsed"
               :disabled="!isProfileComplete"
-              :title="
-                isClient && !isProfileComplete
-                  ? 'Complete your profile to access this section'
-                  : null
-              "
-            >
-              Users
-            </UButton>
+              :tooltip="isProfileComplete ? 'Users' : 'Complete your profile to access this section'"
+            />
 
-            <UButton
+            <SidebarButton
               :to="makeOrgLink('/admin/artefacts')"
-              variant="ghost"
-              justify="start"
-              icon="heroicons:document-text"
-              :color="$route.name === 'admin-artefacts' ? 'primary' : 'gray'"
-              class="w-full"
+                  :icon="'heroicons:document-text'"
+                  :active="$route.name === 'admin-artefacts' || pendingRoute === 'admin-artefacts'"
+              :collapsed="isMobile || isTablet ? false : isCollapsed"
               :disabled="!isProfileComplete"
-              :title="
-                isClient && !isProfileComplete
-                  ? 'Complete your profile to access this section'
-                  : null
-              "
-            >
-              Artifacts
-            </UButton>
+              :tooltip="isProfileComplete ? 'Artifacts' : 'Complete your profile to access this section'"
+            />
 
-            <UButton
+            <SidebarButton
               :to="makeOrgLink('/admin/analytics')"
-              variant="ghost"
-              justify="start"
-              icon="heroicons:chart-bar"
-              :color="$route.name === 'admin-analytics' ? 'primary' : 'gray'"
-              class="w-full"
+              :icon="'heroicons:chart-bar'"
+              :active="$route.name === 'admin-analytics' || pendingRoute === 'admin-analytics'"
+              :collapsed="isMobile || isTablet ? false : isCollapsed"
               :disabled="!isProfileComplete"
-              :title="
-                isClient && !isProfileComplete
-                  ? 'Complete your profile to access this section'
-                  : null
-              "
-            >
-              Analytics
-            </UButton>
+              :tooltip="isProfileComplete ? 'Analytics' : 'Complete your profile to access this section'"
+            />
 
-            <UButton
+            <SidebarButton
               :to="makeOrgLink('/admin/plans')"
-              variant="ghost"
-              justify="start"
-              icon="i-heroicons-currency-dollar"
-              :color="$route.name === 'admin-plans' ? 'primary' : 'gray'"
-              class="w-full"
+              :icon="'i-heroicons-currency-dollar'"
+              :active="$route.name === 'admin-plans' || pendingRoute === 'admin-plans'"
+              :collapsed="isMobile || isTablet ? false : isCollapsed"
               :disabled="!isProfileComplete"
-              :title="
-                isClient && !isProfileComplete
-                  ? 'Complete your profile to access this section'
-                  : null
-              "
-            >
-              Plans
-            </UButton>
+              :tooltip="isProfileComplete ? 'Plans' : 'Complete your profile to access this section'"
+            />
 
             <!-- Integrations with submenu -->
-            <div>
+            <div
+              class="relative"
+              @mouseenter="handleIntegrationsMouseEnter"
+              @mouseleave="handleIntegrationsMouseLeave"
+            >
               <button
-                @click="integrationsOpen = !integrationsOpen"
-                class="w-full flex items-center justify-between space-x-3 px-3 py-2 rounded-lg text-gray-300 hover:text-white hover:bg-dark-800 transition-colors duration-200"
+                ref="integrationsButtonRef"
+                @click="!isCollapsed || isMobile || isTablet ? (integrationsOpen = !integrationsOpen) : null"
+                class="w-full flex items-center rounded-lg text-gray-300 hover:text-white hover:bg-dark-800 transition-colors duration-200 group"
                 :class="{
                   'bg-primary-500/20 text-primary-400': $route.path.includes('/admin/integrations'),
                   'opacity-50 cursor-not-allowed pointer-events-none': !isProfileComplete,
+                  'justify-center px-3 py-2': isCollapsed && !(isMobile || isTablet),
+                  'justify-between px-3 py-2 space-x-3': !isCollapsed || isMobile || isTablet,
                 }"
                 :disabled="!isProfileComplete"
-                :title="
-                  isClient && !isProfileComplete
-                    ? 'Complete your profile to access this section'
-                    : null
-                "
+                :title="(isCollapsed && !(isMobile || isTablet)) ? 'Integrations' : (isClient && !isProfileComplete ? 'Complete your profile to access this section' : 'Integrations')"
+                @mouseenter="handleIntegrationsMouseEnter"
               >
-                <div class="flex items-center space-x-3">
-                  <UIcon name="heroicons:link" class="w-5 h-5" />
-                  <span>Integrations</span>
+                <div class="flex items-center" :class="{ 'space-x-3': !isCollapsed || isMobile || isTablet }">
+                  <UIcon name="heroicons:link" class="w-5 h-5 flex-shrink-0" />
+                  <span
+                    v-if="!isCollapsed || isMobile || isTablet"
+                    class="transition-opacity duration-300 truncate"
+                    :class="{ 'opacity-0': isCollapsed }"
+                  >
+                    Integrations
+                  </span>
                 </div>
                 <UIcon
+                  v-if="!isCollapsed || isMobile || isTablet"
                   name="heroicons:chevron-down"
-                  class="w-4 h-4 transition-transform duration-200"
+                  class="w-4 h-4 transition-transform duration-200 flex-shrink-0"
                   :class="{ 'rotate-180': integrationsOpen }"
                 />
               </button>
-              <div v-show="integrationsOpen" class="ml-8 mt-2 space-y-1">
-                <UButton
+              
+              <!-- Collapsed State: Hover Submenu -->
+              <div
+                v-if="isCollapsed && integrationsHover"
+                class="fixed z-[9999]"
+                :style="{
+                  left: `${integrationsDropdownLeft}px`,
+                  top: `${integrationsDropdownTop}px`
+                }"
+                @mouseenter="integrationsHover = true"
+                @mouseleave="integrationsHover = false"
+              >
+                <div class="bg-dark-800 border border-dark-700 rounded-lg shadow-lg py-2 min-w-[200px]">
+                  <div class="px-3 py-2 border-b border-dark-700">
+                    <span class="text-sm font-medium text-gray-300">Integrations</span>
+                  </div>
+                <div class="space-y-1 px-1">
+                  <SidebarButton
+                    :to="makeOrgLink('/admin/integrations')"
+                    :icon="'heroicons:eye'"
+                    :active="$route.name === 'admin-integrations' || pendingRoute === 'admin-integrations'"
+                    :collapsed="false"
+                    size="sm"
+                    tooltip="Overview"
+                    class="justify-start w-full"
+                    @click="closeMobileSidebar"
+                  />
+                  <SidebarButton
+                    :to="makeOrgLink('/admin/integrations/slack')"
+                    :icon="'i-mdi:slack'"
+                    :active="$route.name === 'admin-integrations-slack' || pendingRoute === 'admin-integrations-slack'"
+                    :collapsed="false"
+                    size="sm"
+                    tooltip="Slack"
+                    class="justify-start w-full"
+                    @click="closeMobileSidebar"
+                  />
+                  <SidebarButton
+                    :to="makeOrgLink('/admin/integrations/teams')"
+                    :icon="'i-mdi:microsoft-teams'"
+                    :active="$route.name === 'admin-integrations-teams' || pendingRoute === 'admin-integrations-teams'"
+                    :collapsed="false"
+                    size="sm"
+                    tooltip="Teams"
+                    class="justify-start w-full"
+                    @click="closeMobileSidebar"
+                  />
+                  <SidebarButton
+                    :to="makeOrgLink('/admin/integrations/whatsapp')"
+                    :icon="'i-mdi:whatsapp'"
+                    :active="$route.name === 'admin-integrations-whatsapp' || pendingRoute === 'admin-integrations-whatsapp'"
+                    :collapsed="false"
+                    size="sm"
+                    tooltip="WhatsApp"
+                    class="justify-start w-full"
+                    @click="closeMobileSidebar"
+                  />
+                  <SidebarButton
+                    :to="makeOrgLink('/admin/integrations/i-message')"
+                    :icon="'i-heroicons:chat-bubble-left-ellipsis'"
+                    :active="$route.name === 'admin-integrations-i-message' || pendingRoute === 'admin-integrations-i-message'"
+                    :collapsed="false"
+                    size="sm"
+                    tooltip="iMessage"
+                    class="justify-start w-full"
+                    @click="closeMobileSidebar"
+                  />
+                </div>
+                </div> 
+              </div>
+
+              <!-- Expanded State: Normal Submenu -->
+              <div
+                v-show="integrationsOpen && (!isCollapsed || isMobile || isTablet)"
+                class="ml-8 mt-2 space-y-1"
+              >
+                <SidebarButton
                   :to="makeOrgLink('/admin/integrations')"
-                  variant="ghost"
-                  justify="start"
+                  :icon="'heroicons:eye'"
+                  :active="$route.name === 'admin-integrations' || pendingRoute === 'admin-integrations'"
+                  :collapsed="false"
                   size="sm"
-                  icon="heroicons:eye"
-                  :color="$route.name === 'admin-integrations' ? 'primary' : 'gray'"
-                  class="w-full"
-                  :disabled="!isProfileComplete"
-                  :title="
-                    isClient && !isProfileComplete
-                      ? 'Complete your profile to access this section'
-                      : null
-                  "
-                >
-                  Overview
-                </UButton>
-                <UButton
+                  tooltip="Overview"
+                  @click="closeMobileSidebar"
+                />
+                <SidebarButton
                   :to="makeOrgLink('/admin/integrations/slack')"
-                  variant="ghost"
-                  justify="start"
+                  :icon="'i-mdi:slack'"
+                  :active="$route.name === 'admin-integrations-slack' || pendingRoute === 'admin-integrations-slack'"
+                  :collapsed="false"
                   size="sm"
-                  icon="i-mdi:slack"
-                  :color="$route.name === 'admin-integrations-slack' ? 'primary' : 'gray'"
-                  class="w-full"
-                  :disabled="!isProfileComplete"
-                  :title="
-                    isClient && !isProfileComplete
-                      ? 'Complete your profile to access this section'
-                      : null
-                  "
-                >
-                  Slack
-                </UButton>
-                <UButton
+                  tooltip="Slack"
+                  @click="closeMobileSidebar"
+                />
+                <SidebarButton
                   :to="makeOrgLink('/admin/integrations/teams')"
-                  variant="ghost"
-                  justify="start"
+                  :icon="'i-mdi:microsoft-teams'"
+                  :active="$route.name === 'admin-integrations-teams' || pendingRoute === 'admin-integrations-teams'"
+                  :collapsed="false"
                   size="sm"
-                  icon="i-mdi:microsoft-teams"
-                  :color="$route.name === 'admin-integrations-teams' ? 'primary' : 'gray'"
-                  class="w-full"
-                  :disabled="!isProfileComplete"
-                  :title="
-                    isClient && !isProfileComplete
-                      ? 'Complete your profile to access this section'
-                      : null
-                  "
-                >
-                  Teams
-                </UButton>
-                <UButton
+                  tooltip="Teams"
+                  @click="closeMobileSidebar"
+                />
+                <SidebarButton
                   :to="makeOrgLink('/admin/integrations/whatsapp')"
-                  variant="ghost"
-                  justify="start"
+                  :icon="'i-mdi:whatsapp'"
+                  :active="$route.name === 'admin-integrations-whatsapp' || pendingRoute === 'admin-integrations-whatsapp'"
+                  :collapsed="false"
                   size="sm"
-                  icon="i-mdi:whatsapp"
-                  :color="$route.name === 'admin-integrations-whatsapp' ? 'primary' : 'gray'"
-                  class="w-full"
-                  :disabled="!isProfileComplete"
-                  :title="
-                    isClient && !isProfileComplete
-                      ? 'Complete your profile to access this section'
-                      : null
-                  "
-                >
-                  WhatsApp
-                </UButton>
-                <UButton
+                  tooltip="WhatsApp"
+                  @click="closeMobileSidebar"
+                />
+                <SidebarButton
                   :to="makeOrgLink('/admin/integrations/i-message')"
-                  variant="ghost"
-                  justify="start"
+                  :icon="'i-heroicons:chat-bubble-left-ellipsis'"
+                  :active="$route.name === 'admin-integrations-i-message' || pendingRoute === 'admin-integrations-i-message'"
+                  :collapsed="false"
                   size="sm"
-                  icon="i-heroicons:chat-bubble-left-ellipsis"
-                  :color="$route.name === 'admin-integrations-i-message' ? 'primary' : 'gray'"
-                  class="w-full"
-                  :disabled="!isProfileComplete"
-                  :title="
-                    isClient && !isProfileComplete
-                      ? 'Complete your profile to access this section'
-                      : null
-                  "
-                >
-                  iMessage
-                </UButton>
+                  tooltip="iMessage"
+                  @click="closeMobileSidebar"
+                />
               </div>
             </div>
           </template>
@@ -281,7 +307,13 @@
     </aside>
 
     <!-- Main content area (offset for fixed sidebar) -->
-    <div class="flex-1 flex flex-col min-h-0 w-full lg:ml-64 relative overflow-hidden">
+    <div 
+      class="flex-1 flex flex-col min-h-0 w-full relative overflow-hidden transition-all duration-300"
+      :class="{
+        'lg:ml-64': !isCollapsed && !isMobile && !isTablet,
+        'lg:ml-16': isCollapsed && !isMobile && !isTablet
+      }"
+    >
       <!-- Top header (fixed height) -->
       <header
         class="sticky top-0 bg-dark-900 border-b border-dark-700 px-3 md:px-6 h-16 flex items-center z-30"
@@ -466,7 +498,7 @@
 
     <!-- Subscription Required Modal -->
     <SubscriptionRequiredModal
-      :open="subscriptionCheck.shouldShowModal"
+      :open="subscriptionCheck.shouldShowModal.value"
       @upgrade="handleUpgradeClick"
     />
   </div>
@@ -474,7 +506,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import ChatWidget from '~/components/chat/ChatWidget.vue'
+import SidebarButton from './SidebarButton.vue'
 import { useAuthStore } from '~/stores/auth/index'
 import { useProfileStore } from '~/stores/profile/index'
 import { useSuperAdminStore } from '~/stores/superadmin/index'
@@ -482,15 +516,22 @@ import { useSubscriptionCheck } from '~/composables/useSubscriptionCheck'
 import SubscriptionRequiredModal from '~/components/ui/SubscriptionRequiredModal.vue'
 
 const route = useRoute()
+const router = useRouter()
 const integrationsOpen = ref(true)
+const integrationsHover = ref(false)
 const isClient = ref(false)
 const sidebarOpen = ref(false)
 const isMobile = ref(false)
 const isTablet = ref(false)
+const isCollapsed = ref(false)
 const auth = useAuthStore()
 const profileStore = useProfileStore()
 const superAdminStore = useSuperAdminStore()
 const subscriptionCheck = useSubscriptionCheck()
+const integrationsDropdownLeft = ref(0)
+const integrationsDropdownTop = ref(0)
+const integrationsButtonRef = ref<HTMLElement | null>(null)
+const pendingRoute = ref<string | null>(null)
 
 const isPlanExpired = computed(() => {
   const expiry = profileStore.userProfile?.plan_expiry
@@ -501,6 +542,31 @@ const isPlanExpired = computed(() => {
 
   return expiryDate.getTime() < Date.now()
 })
+
+const updateIntegrationsDropdownPosition = () => {
+  if (integrationsButtonRef.value && isCollapsed.value) {
+    const rect = integrationsButtonRef.value.getBoundingClientRect()
+    integrationsDropdownLeft.value = rect.right + 8 // 8px = 0.5rem
+    integrationsDropdownTop.value = rect.top
+  }
+}
+
+// Update the handleMouseEnter for integrations
+const handleIntegrationsMouseEnter = () => {
+  if (isCollapsed.value) {
+    updateIntegrationsDropdownPosition()
+    integrationsHover.value = true
+  }
+}
+
+const handleIntegrationsMouseLeave = () => {
+  // Add a small delay to prevent immediate hiding when moving to dropdown
+  setTimeout(() => {
+    if (!integrationsHover.value) {
+      integrationsHover.value = false
+    }
+  }, 100)
+}
 
 const checkAndShowSubscriptionModal = async () => {
   // Fetch org plan if user is authenticated
@@ -541,6 +607,20 @@ const checkScreen = () => {
   } else {
     sidebarOpen.value = false
   }
+  
+  // CHANGED: Don't collapse sidebar on mobile/tablet - show full sidebar
+  if (isMobile.value || isTablet.value) {
+    isCollapsed.value = false  // Changed from true to false
+  } else {
+    // Load saved state from localStorage for desktop
+    const savedState = localStorage.getItem('sidebar-collapsed')
+    if (savedState !== null) {
+      isCollapsed.value = savedState === 'true'
+    } else {
+      // Default to expanded on desktop
+      isCollapsed.value = false
+    }
+  }
 }
 
 onMounted(async () => {
@@ -550,15 +630,40 @@ onMounted(async () => {
   // Add resize listener for mobile detection
   if (typeof window !== 'undefined') {
     window.addEventListener('resize', checkScreen)
+    // Also add resize listener for updating dropdown position
+    window.addEventListener('resize', updateIntegrationsDropdownPosition)
   }
 
   await checkAndShowSubscriptionModal()
 })
 
+onMounted(() => {
+  router.beforeEach((to, from, next) => {
+    pendingRoute.value = to.name as string
+    next()
+  })
+
+  router.afterEach(() => {
+    pendingRoute.value = null
+
+    // ✅ CLOSE SIDEBAR ONLY AFTER NAVIGATION FINISHES
+    if (isMobile.value || isTablet.value) {
+      sidebarOpen.value = false
+    }
+  })
+})
 // Cleanup resize listener on unmount
 onUnmounted(() => {
   if (typeof window !== 'undefined') {
     window.removeEventListener('resize', checkScreen)
+    window.removeEventListener('resize', updateIntegrationsDropdownPosition)
+  }
+})
+
+// Save collapsed state to localStorage when it changes (desktop only)
+watch(isCollapsed, (newValue) => {
+  if (typeof window !== 'undefined' && !isMobile.value && !isTablet.value) {
+    localStorage.setItem('sidebar-collapsed', String(newValue))
   }
 })
 
@@ -566,10 +671,6 @@ onUnmounted(() => {
 watch(
   () => route.name,
   async () => {
-    // Close sidebar on mobile when navigating
-    if (isMobile.value || isTablet.value) {
-      sidebarOpen.value = false
-    }
     await checkAndShowSubscriptionModal()
   },
 )
@@ -603,16 +704,16 @@ const selectedOrgDisplay = computed(() => {
 const selectedOrgName = computed(() => {
   // For superadmin, only show actual selected organization (from query/params or analytics route)
   if (auth.user?.role_id === 0) {
-    const hasOrgInQuery = !!(route && route.query && (route.query.org || route.query.org_id))
-    const hasOrgInParams = !!(route && route.params && (route.params.org || route.params.org_id))
+    // Cast to any to avoid TypeScript errors
+    const query = route && route.query as any
+    const params = route && route.params as any
+
+    const hasOrgInQuery = !!(query?.org || query?.org_id)
+    const hasOrgInParams = !!(params?.org || params?.org_id)
     const onSuperadminAnalytics = route.path.includes('/admin/superadmin-analytics')
+    
     if (hasOrgInQuery || hasOrgInParams || onSuperadminAnalytics) {
-      const q =
-        route && route.query
-          ? route.query.org || route.query.org_id
-          : route && route.params
-            ? route.params.org || route.params.org_id
-            : null
+      const q = query?.org || query?.org_id || params?.org || params?.org_id
       if (q) {
         const id = String(q)
         const found = (superAdminStore.organizations || []).find(
@@ -650,9 +751,14 @@ const isProfileComplete = computed(() => {
 const showOrganizationMenusForSuperAdmin = computed(() => {
   // Non-superadmin users always see organization menus
   if (auth.user?.role_id !== 0) return true
+  
+  // Cast to any to avoid TypeScript errors
+  const query = route && route.query as any
+  const params = route && route.params as any
+
   // For superadmin, detect selected org via route query or params
-  const hasOrgInQuery = !!(route && route.query && (route.query.org || route.query.org_id))
-  const hasOrgInParams = !!(route && route.params && (route.params.org || route.params.org_id))
+  const hasOrgInQuery = !!(query?.org || query?.org_id)
+  const hasOrgInParams = !!(params?.org || params?.org_id)
   // Also consider analytics page where org query is used
   const onSuperadminAnalytics = route.path.includes('/admin/superadmin-analytics')
   return hasOrgInQuery || hasOrgInParams || onSuperadminAnalytics
@@ -703,12 +809,12 @@ const profileItems = computed(() => {
 // Helper to construct route objects that include org query for superadmins
 function makeOrgLink(path: string) {
   try {
-    const q =
-      route && route.query
-        ? route.query.org || route.query.org_id
-          ? { org: String(route.query.org || route.query.org_id) }
-          : {}
-        : {}
+    // Cast route.query to any to avoid TypeScript errors
+    const query = route && route.query as any
+    const q = query?.org || query?.org_id
+      ? { org: String(query.org || query.org_id) }
+      : {}
+    
     if (auth.user?.role_id === 0 && q && Object.keys(q).length) {
       return { path, query: q }
     }
@@ -722,6 +828,16 @@ function makeOrgLink(path: string) {
 async function handleUpgradeClick() {
   subscriptionCheck.closeModal()
   subscriptionCheck.redirectToPlans()
+}
+
+const toggleSidebar = () => {
+  isCollapsed.value = !isCollapsed.value
+}
+
+const closeMobileSidebar = () => {
+  if (isMobile.value || isTablet.value) {
+    sidebarOpen.value = false
+  }
 }
 
 const pageTitle = computed(() => {
@@ -841,5 +957,38 @@ const pageTitle = computed(() => {
   .engraved-org {
     font-size: 0.95rem;
   }
+}
+
+/* Ensure smooth transitions for sidebar */
+aside {
+  transition: all 0.3s ease;
+}
+
+.w-16 {
+  width: 4rem !important;
+}
+
+.w-64 {
+  width: 16rem !important;
+}
+
+/* Ensure tooltips stay within viewport */
+:deep(.group) {
+  position: relative;
+}
+
+/* Prevent tooltip cutoff */
+aside {
+  overflow: visible !important;
+}
+
+/* Ensure dropdowns are visible */
+.z-50 {
+  z-index: 50;
+}
+
+/* Make sure sidebar doesn't hide tooltips */
+aside {
+  isolation: isolate;
 }
 </style>
