@@ -6,7 +6,7 @@
         <div class="col-span-1">
           <NuxtLink to="/" class="flex items-center space-x-3 mb-4">
             <img
-              src="https://cdn.builder.io/api/v1/image/assets%2Fb2a7382a9c9146babd538ccc60e9d0b5%2Fbddd43caf4614f99a3fbff498927abcc?format=webp&width=800"
+              src="~/assets/media/logo.svg"
               alt="Provento Logo"
               class="w-8 h-8"
             />
