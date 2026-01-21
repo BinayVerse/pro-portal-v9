@@ -21,7 +21,7 @@ export default defineNuxtConfig({
       awsMarketplaceLink: process.env.NUXT_PUBLIC_AWS_MARKETPLACE_LINK || '',
       // Umami Analytics
       umamiHost: process.env.NUXT_PUBLIC_UMAMI_HOST || '',
-      umamiWebsiteId: process.env.NUXT_PUBLIC_UMAMI_WEBSITE_ID || '',
+      umamiId: process.env.NUXT_PUBLIC_UMAMI_ID || '',
     },
     dbUser: process.env.NUXT_DB_USER,
     dbPassword: process.env.NUXT_DB_PASSWORD,
@@ -120,8 +120,8 @@ export default defineNuxtConfig({
 
   // UMAMI Analytics
   umami: {
-    id: process.env.NUXT_PUBLIC_UMAMI_ID || 'my-w3b517e-id',
-    host: process.env.NUXT_PUBLIC_UMAMI_HOST || 'https://my-umami.xyz',
+    id: process.env.NUXT_PUBLIC_UMAMI_ID || '',
+    host: process.env.NUXT_PUBLIC_UMAMI_HOST || '',
     autoTrack: true,
     // enabled: false,
     // useDirective: true,
