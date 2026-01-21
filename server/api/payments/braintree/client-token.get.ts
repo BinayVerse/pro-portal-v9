@@ -25,7 +25,7 @@ export default defineEventHandler(async (event) => {
 
     const resp = await gateway.clientToken.generate({})
     const token = resp && (resp as any).clientToken
-    console.log('Braintree client token generated successfully', resp)
+    console.log('Braintree client token generated successfully')
     return { success: true, clientToken: token }
   } catch (err: any) {
     console.error('Failed to generate Braintree client token', err)

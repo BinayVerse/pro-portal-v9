@@ -251,13 +251,22 @@ export default defineEventHandler(async (event) => {
 
           // console.log('[DEBUG] Chargebee price details:', priceCheck.item_price)
 
+          // 🔥 FORCE attach & make primary for ADDONS
+          await chargebee.payment_source.create_using_temp_token({
+            customer_id: orderDetails.customerId,
+            type: 'card',
+            tmp_token: orderDetails.gwToken,
+            replace_primary_payment_source: true,
+          }).request()
+
+
           const invoiceRes = await chargebee.invoice
             .create_for_charge_item({
               customer_id: orderDetails.customerId,
-
-              // ⬇️ THIS is what the REST API expects
+              auto_collection: 'on',
               item_price: {
                 item_price_id: plan.chargebee_plan_id,
+                quantity,
               },
             } as any)
             .request()
