@@ -386,7 +386,7 @@
                 <strong class="text-white">Provento is an</strong> AWS Marketplace–approved
                 <strong class="text-white">SaaS platform</strong> built with security and privacy by
                 design. We host our services on Amazon Web Services (AWS) and follow industry best
-                practices for data protection, acction, ames control, and encryption.
+                practices for data protection, access control, and encryption.
               </p>
               <p class="text-base leading-relaxed">
                 <strong class="text-white"
@@ -394,7 +394,8 @@
                   (GDPR)</strong
                 >
                 and supports customer rights related to data access, correction, deletion, and
-                portability. Customer data is processed securely and only for the purposes require.
+                portability. Customer data is processed securely and only for the purposes required
+                to provide the service.
               </p>
             </div>
           </div>
