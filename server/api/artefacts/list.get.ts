@@ -40,10 +40,42 @@ export default defineEventHandler(async (event) => {
 
     const tokenUserOrg = userResult.rows[0].org_id
     const tokenUserRole = userResult.rows[0].role_id
+    const tokenUserId = userId
 
     // Allow superadmin to request a different org via query param 'org'/'org_id'
     const requestedOrg = queryParams?.org || queryParams?.org_id || null
     const org_id = tokenUserRole === 0 && requestedOrg ? String(requestedOrg) : tokenUserOrg
+
+    // Build department filter for Department Admin (role_id = 3)
+    let departmentFilter = ''
+    let docQueryParams: any[] = [org_id]
+
+    if (tokenUserRole === 3) {
+      try {
+        const deptResult = await query(
+          `SELECT dept_id FROM user_departments WHERE user_id = $1`,
+          [String(tokenUserId)],
+        )
+        const deptIds = deptResult.rows.map((row) => row.dept_id)
+
+        if (deptIds.length > 0) {
+          // Department Admin sees: documents in their departments + unassigned documents
+          departmentFilter = `AND (
+            EXISTS (
+              SELECT 1 FROM document_departments dd
+              WHERE dd.document_id = d.id AND dd.dept_id = ANY($2)
+            )
+            OR NOT EXISTS (
+              SELECT 1 FROM document_departments dd2
+              WHERE dd2.document_id = d.id
+            )
+          )`
+          docQueryParams.push(deptIds)
+        }
+      } catch (e) {
+        console.error('Failed to fetch department assignments for Department Admin:', e)
+      }
+    }
 
     // Fetch documents with category information and user who added them
     const documentResults = await query(
@@ -57,10 +89,10 @@ export default defineEventHandler(async (event) => {
         LEFT JOIN document_category c
           ON d.file_category IS NOT NULL AND d.file_category::text = c.id::text
         LEFT JOIN users u ON d.added_by = u.user_id
-        WHERE d.org_id = $1
+        WHERE d.org_id = $1 ${departmentFilter}
         ORDER BY d.updated_at DESC;
         `,
-      [org_id]
+      docQueryParams
     )
 
     // Calculate stats dynamically

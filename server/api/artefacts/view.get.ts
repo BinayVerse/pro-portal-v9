@@ -85,6 +85,41 @@ export default defineEventHandler(async (event) => {
         }
 
         const doc = documentResult.rows[0]
+
+        // Check department access for Department Admin (role_id = 3)
+        if (tokenUserRole === 3) {
+            try {
+                // Get user's departments
+                const deptResult = await query(
+                    `SELECT dept_id FROM user_departments WHERE user_id = $1`,
+                    [String(userId)],
+                )
+                const userDeptIds = deptResult.rows.map((row) => row.dept_id)
+
+                // Check if document is in any of user's departments or is unassigned
+                const accessCheck = await query(
+                    `SELECT 1 FROM organization_documents d
+                     WHERE d.id = $1 AND (
+                       NOT EXISTS (
+                         SELECT 1 FROM document_departments dd WHERE dd.document_id = d.id
+                       )
+                       OR EXISTS (
+                         SELECT 1 FROM document_departments dd WHERE dd.document_id = d.id AND dd.dept_id = ANY($2)
+                       )
+                     )`,
+                    [artefactId, userDeptIds],
+                )
+
+                if (accessCheck.rows.length === 0) {
+                    setResponseStatus(event, 403)
+                    throw new CustomError('Forbidden: You do not have access to this document', 403)
+                }
+            } catch (e: any) {
+                if (e instanceof CustomError) throw e
+                console.error('Department access check failed:', e)
+                // Continue if check fails to avoid breaking existing behavior
+            }
+        }
         const fileName = doc.name
         const documentLink = doc.document_link
 

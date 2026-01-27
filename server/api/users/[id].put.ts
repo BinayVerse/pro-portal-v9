@@ -262,6 +262,32 @@ export default defineEventHandler(async (event) => {
       throw new CustomError('User not found or unauthorized', 404)
     }
 
+    // Handle department assignment for Department Admin (role_id = 3)
+    if (params.role_id === 3 || params.role_id === '3') {
+      try {
+        // Delete existing department assignments
+        await query(
+          `DELETE FROM user_departments WHERE user_id = $1`,
+          [String(userId)],
+        )
+
+        // Add new department assignments if provided
+        if (params.departments && Array.isArray(params.departments) && params.departments.length > 0) {
+          for (const deptId of params.departments) {
+            await query(
+              `INSERT INTO user_departments (user_id, dept_id, org_id)
+               VALUES ($1, $2, $3)
+               ON CONFLICT (user_id, dept_id) DO NOTHING`,
+              [String(userId), deptId, orgId],
+            )
+          }
+        }
+      } catch (e) {
+        console.error('Failed to update department assignments:', e)
+        // Continue even if department update fails
+      }
+    }
+
     setResponseStatus(event, 200)
     return {
       statusCode: 201,

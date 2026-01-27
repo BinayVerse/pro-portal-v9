@@ -34,11 +34,43 @@ export default defineEventHandler(async (event) => {
 
   const tokenUserOrg = userRow.rows[0].org_id
   const tokenUserRole = userRow.rows[0].role_id
+  const tokenUserId = userId
 
   // Allow superadmin to request users for a specific org via query param
   const q = getQuery(event) as Record<string, any>
   const requestedOrg = q?.org || q?.org_id || null
   const orgId = tokenUserRole === 0 && requestedOrg ? String(requestedOrg) : tokenUserOrg
+
+  // For Department Admin (role_id = 3), get their departments
+  let departmentFilter = ''
+  let queryParams: any[] = [orgId]
+
+  if (tokenUserRole === 3) {
+    try {
+      const deptResult = await query(
+        `SELECT dept_id FROM user_departments WHERE user_id = $1`,
+        [String(tokenUserId)],
+      )
+      const deptIds = deptResult.rows.map((row) => row.dept_id)
+
+      if (deptIds.length > 0) {
+        // Department Admin sees: users in their departments + unassigned users
+        departmentFilter = `AND (
+          EXISTS (
+            SELECT 1 FROM user_departments ud
+            WHERE ud.user_id = u.user_id AND ud.dept_id = ANY($2)
+          )
+          OR NOT EXISTS (
+            SELECT 1 FROM user_departments ud2
+            WHERE ud2.user_id = u.user_id
+          )
+        )`
+        queryParams.push(deptIds)
+      }
+    } catch (e) {
+      console.error('Failed to fetch department assignments for Department Admin:', e)
+    }
+  }
 
   const users = await query(
     `WITH distinct_users AS (
@@ -55,7 +87,7 @@ export default defineEventHandler(async (event) => {
           COALESCE(u.created_at, NULL) AS created_at,
           COALESCE(u.is_active, true) AS is_active
       FROM users u
-      WHERE u.org_id = $1 AND u.role_id IS DISTINCT FROM '0'
+      WHERE u.org_id = $1 AND u.role_id IS DISTINCT FROM '0' ${departmentFilter}
       ORDER BY u.user_id, u.created_at DESC  -- keep latest if duplicates exist
     )
     SELECT
@@ -91,7 +123,7 @@ export default defineEventHandler(async (event) => {
     LEFT JOIN organizations o ON du.org_id = o.org_id
     LEFT JOIN roles r ON du.role_id = r.role_id
     ORDER BY du.name ASC;`,
-    [orgId],
+    queryParams,
   )
 
   const formattedUsers = users.rows.map(user => ({

@@ -120,22 +120,7 @@ export default defineNuxtConfig({
 
   // UMAMI Analytics
   umami: {
-    id: process.env.NUXT_PUBLIC_UMAMI_ID || '',
-    host: process.env.NUXT_PUBLIC_UMAMI_HOST || '',
-    autoTrack: true,
-    // enabled: false,
-    // useDirective: true,
-    // ignoreLocalhost: true,
-    // domains: ['cool-site.app', 'my-space.site'],
-    // urlOptions: {
-    //   trailingSlash: 'always',
-    //   excludeSearch: false,
-    //   excludeHash: false,
-    // },
-    // proxy: 'cloak',
-    // logErrors: true,
-    // customEndpoint: '/my-custom-endpoint',
-    // tag: 'website-variation-123',
+    autoTrack: false,
   },
 
   // Nitro (Server)

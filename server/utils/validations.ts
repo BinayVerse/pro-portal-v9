@@ -18,6 +18,7 @@ export const createUserValidation = z.object({
   contact_number: z.string(),
   primary_contact: z.boolean().optional(),
   role_id: z.any(),
+  departments: z.array(z.string()).optional(), // for Department Admin (role_id = 3)
 })
 
 export const ContactUsValidation = z.object({

@@ -1,14 +1,21 @@
 <template>
   <div class="space-y-6">
     <!-- Header -->
-    <div class="space-y-4 sm:space-y-0 sm:flex sm:flex-row sm:items-start sm:justify-between" style="margin-top: 0">
+    <div
+      class="space-y-4 sm:space-y-0 sm:flex sm:flex-row sm:items-start sm:justify-between"
+      style="margin-top: 0"
+    >
       <div class="w-full sm:w-auto">
-        <h1 class="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-1 sm:mb-2">User Management</h1>
+        <h1 class="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-1 sm:mb-2">
+          User Management
+        </h1>
         <p class="text-xs sm:text-sm lg:text-base text-gray-400">
           Manage user accounts, roles, and permissions across your organization.
         </p>
       </div>
-      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto flex-shrink-0">
+      <div
+        class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto flex-shrink-0"
+      >
         <button
           @click="!disableUserActions && openBulkUplaod()"
           :disabled="disableUserActions"
@@ -106,41 +113,44 @@
 
     <!-- Search, Filters and Sort -->
     <div class="bg-dark-800 rounded-lg p-4 sm:p-6 border border-dark-700">
-      <div class="flex flex-col gap-3 sm:gap-4">
-        <!-- Search Input -->
-        <div class="flex-1">
-          <div class="relative">
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <UIcon name="i-heroicons-magnifying-glass" class="h-5 w-5 text-gray-400" />
-            </div>
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="Search users..."
-              :class="baseInputWithIcon"
-            />
-          </div>
+      <div class="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <!-- Search -->
+        <div class="lg:col-span-2">
+          <UInput
+            :model-value="searchQuery"
+            @update:model-value="searchQuery = $event"
+            placeholder="Search users..."
+            size="md"
+            icon="i-heroicons-magnifying-glass"
+          />
         </div>
 
-        <!-- Filters Row -->
-        <div class="flex flex-col sm:flex-row gap-3 sm:gap-4">
-          <!-- Role Filter -->
-          <div class="flex-1 sm:w-auto">
-            <select v-model="selectedRole" :class="baseInputClass">
-              <option value="">All Roles</option>
-              <option value="admin">Admin</option>
-              <option value="user">User</option>
-            </select>
-          </div>
+        <!-- Role -->
+        <div class="w-full">
+          <USelect
+            :model-value="selectedRole"
+            @update:model-value="selectedRole = $event"
+            :options="[
+              { label: 'All Roles', value: '' },
+              { label: 'Admin', value: 'admin' },
+              { label: 'User', value: 'user' },
+            ]"
+            size="md"
+          />
+        </div>
 
-          <!-- Status Filter -->
-          <div class="flex-1 sm:w-auto">
-            <select v-model="selectedStatus" :class="baseInputClass">
-              <option value="">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
+        <!-- Status -->
+        <div class="w-full">
+          <USelect
+            :model-value="selectedStatus"
+            @update:model-value="selectedStatus = $event"
+            :options="[
+              { label: 'All Status', value: '' },
+              { label: 'Active', value: 'active' },
+              { label: 'Inactive', value: 'inactive' },
+            ]"
+            size="md"
+          />
         </div>
       </div>
     </div>
@@ -295,7 +305,9 @@
             </div>
           </template>
         </UTable>
-        <div class="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between border-t border-dark-700 gap-4 sm:gap-0">
+        <div
+          class="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between border-t border-dark-700 gap-4 sm:gap-0"
+        >
           <div class="flex items-center space-x-3 text-xs sm:text-sm">
             <div class="text-gray-400 hidden sm:block">Rows per page</div>
             <div class="w-20 sm:w-24">
@@ -399,6 +411,30 @@
               }"
               icon="i-heroicons-cursor-arrow-ripple"
             />
+          </UFormGroup>
+
+          <!-- Departments (for Department Admin) -->
+          <UFormGroup
+            v-if="userForm.role_id === 3 || String(userForm.role_id) === '3'"
+            label="Departments"
+            name="departments"
+            required
+          >
+            <USelect
+              v-model="userForm.departments"
+              :options="departmentsList.map((d) => ({ label: d.name, value: d.dept_id }))"
+              option-attribute="label"
+              value-attribute="value"
+              multiple
+              placeholder="Select departments"
+              selectClass="custom-select"
+              :ui="{
+                base: 'w-full px-3 py-3 border border-dark-700 rounded-lg bg-dark-900 text-white focus:outline-none focus:ring-2 focus:ring-blue-500',
+                padding: { sm: 'p-3' },
+              }"
+              icon="i-heroicons-building-office"
+            />
+            <p class="text-xs text-gray-400 mt-1">Select one or more departments for this admin to manage</p>
           </UFormGroup>
 
           <!-- Primary Contact -->
@@ -743,6 +779,7 @@ interface UserForm {
   role_id?: number
   primaryContact: boolean
   isActive: boolean
+  departments?: string[] // for Department Admin role (dept_id array)
 }
 
 // Using admin layout
@@ -843,6 +880,7 @@ const error = ref<string | null>(null)
 const usersList = ref<MappedUser[]>([])
 const selectedUser = ref<MappedUser | null>(null)
 const isEditMode = ref(false)
+const departmentsList = ref<any[]>([]) // stores organization departments
 
 const showPrimaryContactConfirm = ref(false)
 const pendingPrimaryContactChange = ref(false)
@@ -1025,7 +1063,20 @@ const userSchema = z.object({
   }),
   primaryContact: z.boolean().optional(), // optional
   isActive: z.boolean().default(true),
-})
+  departments: z.array(z.string()).optional().default([]),
+}).refine(
+  (data) => {
+    // For Department Admin (role_id = 3), departments are required
+    if (data.role_id === 3 || String(data.role_id) === '3') {
+      return data.departments && data.departments.length > 0
+    }
+    return true
+  },
+  {
+    message: 'At least one department must be assigned for Department Admin role',
+    path: ['departments'],
+  },
+)
 
 // Function to validate phone and update UI
 function validatePhoneField() {
@@ -1161,6 +1212,21 @@ const loadUsers = async (showLoading = true) => {
   }
 }
 
+const loadDepartments = async () => {
+  try {
+    const orgIdFromQuery =
+      route.query?.org || route.query?.org_id
+        ? String(route.query?.org || route.query?.org_id)
+        : null
+    const result = await $fetch('/api/organizations/departments', {
+      query: orgIdFromQuery ? { org_id: orgIdFromQuery } : {},
+    })
+    departmentsList.value = result?.data || []
+  } catch (err: any) {
+    console.error('Failed to load departments:', err)
+  }
+}
+
 const handlePrimaryContactUpdate = async () => {
   if (!userForm.primaryContact) return
 
@@ -1201,7 +1267,7 @@ const saveUser = async () => {
   const phoneData = phoneRef.value?.phoneData
   const phoneNumberWithCountryCode = phoneData?.number || userForm.phone || ''
 
-  const payload = {
+  const payload: any = {
     user_id: userForm.user_id,
     name: userForm.name,
     email: userForm.email,
@@ -1209,6 +1275,11 @@ const saveUser = async () => {
     role_id: userForm.role_id,
     primary_contact: userForm.primaryContact || false,
     status: userForm.isActive ? 'active' : 'inactive',
+  }
+
+  // Include departments for Department Admin role
+  if (userForm.role_id === 3 || String(userForm.role_id) === '3') {
+    payload.departments = userForm.departments || []
   }
 
   // Set appropriate loading flag to prevent duplicate submissions
@@ -1270,6 +1341,7 @@ const resetUserForm = () => {
   userForm.role_id = 2
   userForm.primaryContact = false
   userForm.isActive = true
+  userForm.departments = []
 
   // Reset phone component
   if (phoneRef.value && phoneRef.value.resetPhoneField) {
@@ -1288,6 +1360,17 @@ const openAddUserModal = () => {
 const openEditUserModal = async (user: any) => {
   isEditMode.value = true
 
+  // Load user's departments if they're a Department Admin
+  let userDepartments: string[] = []
+  if (user.role_id === 3) {
+    try {
+      const result = await $fetch(`/api/users/${user.id}/departments`)
+      userDepartments = result?.departments || []
+    } catch (err) {
+      console.error('Failed to load user departments:', err)
+    }
+  }
+
   Object.assign(userForm, {
     user_id: user.id,
     name: user.name,
@@ -1296,6 +1379,7 @@ const openEditUserModal = async (user: any) => {
     phone: user.phone,
     primaryContact: user.primaryContact || false,
     isActive: user.status === 'active',
+    departments: userDepartments,
   })
 
   showUserModal.value = true
@@ -1723,6 +1807,7 @@ onMounted(async () => {
   const initialLoads: Promise<any>[] = [
     loadUsers(true),
     usersStore.fetchRoles(),
+    loadDepartments(),
     // pass org from route for superadmin
     (async () => {
       const route = useRoute()
