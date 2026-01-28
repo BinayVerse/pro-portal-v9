@@ -191,6 +191,28 @@
                 </p>
               </UFormGroup>
 
+              <!-- Departments (Optional) -->
+              <UFormGroup label="Departments (Optional)" name="departments">
+                <USelectMenu
+                  v-model="state.departments"
+                  :options="props.availableDepartments"
+                  option-attribute="name"
+                  value-attribute="dept_id"
+                  multiple
+                  searchable
+                  placeholder="Select departments"
+                >
+                  <template #label>
+                    <span v-if="!state.departments.length" class="text-gray-400">
+                      Select departments
+                    </span>
+                    <span v-else>
+                      {{ selectedDepartmentsLabel }}
+                    </span>
+                  </template>
+                </USelectMenu>
+              </UFormGroup>
+
               <div class="flex justify-end space-x-3 pt-6 border-t border-dark-600 mt-6">
                 <UButton
                   @click="canCloseModal ? $emit('close') : null"
@@ -485,6 +507,28 @@
                 </div>
               </div>
 
+              <!-- Departments (Optional) -->
+              <UFormGroup label="Departments (Optional)" name="departments">
+                <USelectMenu
+                  v-model="googleDriveState.departments"
+                  :options="props.availableDepartments"
+                  option-attribute="name"
+                  value-attribute="dept_id"
+                  multiple
+                  searchable
+                  placeholder="Select departments"
+                >
+                  <template #label>
+                    <span v-if="!googleDriveState.departments.length" class="text-gray-400">
+                      Select departments
+                    </span>
+                    <span v-else>
+                      {{ selectedGoogleDepartmentsLabel }}
+                    </span>
+                  </template>
+                </USelectMenu>
+              </UFormGroup>
+
               <!-- Bottom Actions -->
               <div class="flex justify-end space-x-3 pt-6 border-t border-dark-600 mt-6">
                 <UButton
@@ -552,10 +596,14 @@ interface Props {
   isOpen: boolean
   availableCategories: string[]
   categoriesLoading?: boolean
+  availableDepartments?: Array<{ dept_id: string; name: string }>
+  departmentsLoading?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   categoriesLoading: false,
+  departmentsLoading: false,
+  availableDepartments: () => [],
 })
 
 // Initialize artefacts store
@@ -585,6 +633,7 @@ const schema = z.object({
   file: z.any().refine((file) => file !== null, 'File is required'),
   category: z.string().min(1, 'Category is required'),
   description: z.string().max(100, 'Description must be 100 characters or less').optional(),
+  departments: z.array(z.string()).optional().default([]),
 })
 
 type Schema = z.output<typeof schema>
@@ -612,6 +661,7 @@ const tabItems = [
 const googleDriveState = reactive({
   category: '',
   url: '',
+  departments: [] as string[],
 })
 
 // Google Drive computed properties from store
@@ -644,6 +694,7 @@ const state = reactive({
   file: null as File | null,
   category: '',
   description: '',
+  departments: [] as string[],
 })
 
 // File replacement modal state
@@ -936,6 +987,25 @@ const modalOrgId = computed(() => {
   }
   return authUser.value?.org_id || null
 })
+
+const buildDepartmentsLabel = (selectedIds: string[]) => {
+  if (!selectedIds || !selectedIds.length) return ''
+
+  const selected =
+    props.availableDepartments?.filter((d) => selectedIds.includes(String(d.dept_id))) || []
+
+  const names = selected.map((d) => d.name)
+
+  if (names.length <= 2) return names.join(', ')
+
+  return `${names.slice(0, 2).join(', ')} +${names.length - 2} more`
+}
+
+const selectedDepartmentsLabel = computed(() => buildDepartmentsLabel(state.departments))
+
+const selectedGoogleDepartmentsLabel = computed(() =>
+  buildDepartmentsLabel(googleDriveState.departments),
+)
 
 const onSubmit = async (event: FormSubmitEvent<Schema>) => {
   try {

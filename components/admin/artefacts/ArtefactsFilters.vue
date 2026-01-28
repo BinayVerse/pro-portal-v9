@@ -58,6 +58,16 @@
           size="md"
         />
       </div>
+
+      <!-- Department Filter -->
+      <USelect
+        :model-value="selectedDepartment"
+        @update:model-value="$emit('update:selectedDepartment', $event)"
+        :options="departmentOptions"
+        option-attribute="label"
+        value-attribute="value"
+        size="md"
+      />
     </div>
   </div>
 </template>
@@ -71,6 +81,8 @@ interface Props {
   selectedStatus: string
   availableCategories: string[]
   categoriesLoading?: boolean
+  departmentOptions: any[]
+  selectedDepartment: String
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -82,5 +94,6 @@ defineEmits<{
   'update:selectedCategory': [value: string]
   'update:selectedType': [value: string]
   'update:selectedStatus': [value: string]
+  'update:selectedDepartment': [value: String]
 }>()
 </script>

@@ -34,6 +34,11 @@ export const useArtefactsStore = defineStore('artefacts', {
     pollingIntervalMs: 10000, // Start with 10 seconds
     maxPollingIntervalMs: 60000, // Max 60 seconds
     minPollingIntervalMs: 5000, // Min 5 seconds
+    // Departments
+    departments: [] as any[],
+    departmentsLoading: false,
+    departmentsError: null as string | null,
+    artefactDepartments: {} as Record<number, string[]>,
   }),
 
   getters: {
@@ -86,6 +91,10 @@ export const useArtefactsStore = defineStore('artefacts', {
         percentage: total > 0 ? Math.round((processed / total) * 100) : 0
       }
     },
+    getDepartments: (state) => state.departments,
+    isDepartmentsLoading: (state) => state.departmentsLoading,
+    getDepartmentsError: (state): string | null => state.departmentsError,
+    getArtefactDepartments: (state) => state.artefactDepartments,
   },
 
   actions: {
@@ -962,6 +971,87 @@ export const useArtefactsStore = defineStore('artefacts', {
         allProcessed: this.allDocumentsProcessed,
         allComplete: this.allDocumentsProcessed && this.allDocumentsSummarized,
       }
+    },
+
+    // Department fetching actions
+    async fetchDepartments(orgId?: string | null) {
+      this.departmentsLoading = true
+      this.departmentsError = null
+      try {
+        const token = process.client ? localStorage.getItem('authToken') : null
+        if (!token) {
+          this.departmentsError = 'No auth token available'
+          return
+        }
+
+        const url = orgId
+          ? `/api/organizations/departments?org_id=${encodeURIComponent(String(orgId))}`
+          : '/api/organizations/departments'
+
+        const result = await $fetch<{ data: any[] }>(url, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        this.departments = result?.data || []
+      } catch (err: any) {
+        console.error('Failed to load departments:', err)
+        if (!await this.handleAuthError(err)) {
+          this.departmentsError = this.handleError(err, 'Failed to load departments')
+        }
+        this.departments = []
+      } finally {
+        this.departmentsLoading = false
+      }
+    },
+
+    async fetchArtefactDepartments(artefactIds?: number[]) {
+      try {
+        const token = process.client ? localStorage.getItem('authToken') : null
+        if (!token) {
+          console.warn('No auth token available for loading artifact departments')
+          return
+        }
+
+        const idsToFetch = artefactIds || this.artefacts.map(a => a.id)
+        if (idsToFetch.length === 0) return
+
+        // Fetch departments for each artifact in parallel
+        await Promise.allSettled(
+          idsToFetch.map(async (artefactId) => {
+            try {
+              const result = await $fetch<{ departments: Array<{ dept_id: string; name: string }> }>(
+                `/api/artefacts/${artefactId}/departments`,
+                {
+                  method: 'GET',
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              )
+              // Store department IDs for form binding, not names
+              const deptIds = (result?.departments || []).map((d: any) => d.dept_id).filter(Boolean)
+              this.artefactDepartments[artefactId] = deptIds
+            } catch (err: any) {
+              console.error(`Failed to load departments for artifact ${artefactId}:`, err)
+              this.artefactDepartments[artefactId] = []
+            }
+          }),
+        )
+      } catch (error: any) {
+        console.error('Error fetching artifact departments:', error)
+      }
+    },
+
+    // Helper to get department names from IDs for display
+    getDepartmentNames(deptIds: string[]): string[] {
+      return deptIds
+        .map((deptId: string) => {
+          const dept = this.departments.find((d: any) => d.dept_id === deptId)
+          return dept?.name || ''
+        })
+        .filter(Boolean)
     },
   },
 })

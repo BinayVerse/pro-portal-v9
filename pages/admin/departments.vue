@@ -120,9 +120,10 @@
     <div class="bg-dark-800 rounded-lg border border-dark-700 overflow-hidden">
       <!-- Table Header -->
       <div class="px-4 sm:px-6 py-4 border-b border-dark-700">
-        <h2 class="text-base sm:text-lg font-semibold text-white">All Departments</h2>
+        <h2 class="text-base sm:text-lg font-semibold text-white">Departments</h2>
         <p class="text-gray-400 text-xs sm:text-sm mt-1">
-          A list of all departments along with assigned users and managed artifacts.
+          Individual departments with their assigned users and artifacts. Overall statistics shown
+          in cards above.
         </p>
       </div>
 
@@ -367,8 +368,8 @@
           >?
         </p>
         <p class="text-sm text-gray-400 mb-6">
-          Deactivated departments cannot receive new users or documents. Existing users and
-          documents will remain in the system.
+          Deactivated departments cannot receive new users or artifacts. Existing users and
+          artifacts will remain in the system.
         </p>
 
         <div class="flex space-x-3">
@@ -400,7 +401,7 @@
           Are you sure you want to activate
           <span class="font-semibold">{{ selectedDepartment?.name }}</span
           >?<br />
-          The department will be able to receive new users and documents.
+          The department will be able to receive new users and artifacts.
         </p>
 
         <div class="flex space-x-3">
@@ -516,18 +517,20 @@ const columns = [
   { key: 'actions', label: 'Actions' },
 ]
 
-// Filter logic
+// Filter logic - exclude "ALL" row from table display
 const filteredDepartments = computed(() => {
-  return departmentsList.value.filter((dept) => {
-    const matchesSearch =
-      !searchQuery.value ||
-      dept.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      dept.description.toLowerCase().includes(searchQuery.value.toLowerCase())
+  return departmentsList.value
+    .filter((dept) => dept.id !== 'ALL') // Exclude the "ALL" aggregate row from table
+    .filter((dept) => {
+      const matchesSearch =
+        !searchQuery.value ||
+        dept.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+        dept.description.toLowerCase().includes(searchQuery.value.toLowerCase())
 
-    const matchesStatus = !selectedStatus.value || dept.status === selectedStatus.value
+      const matchesStatus = !selectedStatus.value || dept.status === selectedStatus.value
 
-    return matchesSearch && matchesStatus
-  })
+      return matchesSearch && matchesStatus
+    })
 })
 
 // Sorting
@@ -599,12 +602,19 @@ watch([selectedStatus, searchQuery], () => {
   page.value = 1
 })
 
-// Stats computation
+// Stats computation - use "ALL" row for aggregated counts, exclude it from department count
 const stats = computed<DepartmentStats>(() => {
-  const totalDepartments = departmentsList.value.length
-  const activeDepartments = departmentsList.value.filter((d) => d.status === 'active').length
-  const totalUsers = departmentsList.value.reduce((sum, d) => sum + d.users, 0)
-  const totalArtifacts = departmentsList.value.reduce((sum, d) => sum + d.artifacts, 0)
+  // Find the "ALL" row which has aggregated counts from the backend
+  const allRow = departmentsList.value.find((d) => d.id === 'ALL')
+
+  // Count only real departments (exclude the "ALL" aggregate row)
+  const realDepartments = departmentsList.value.filter((d) => d.id !== 'ALL')
+  const totalDepartments = realDepartments.length
+  const activeDepartments = realDepartments.filter((d) => d.status === 'active').length
+
+  // Use the "ALL" row's aggregated counts (accurate backend totals)
+  const totalUsers = allRow?.users || 0
+  const totalArtifacts = allRow?.artifacts || 0
 
   return { totalDepartments, activeDepartments, totalUsers, totalArtifacts }
 })

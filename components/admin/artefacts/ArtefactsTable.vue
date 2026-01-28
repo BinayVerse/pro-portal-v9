@@ -49,7 +49,9 @@
             <div class="text-xs sm:text-sm font-medium text-white truncate" :title="row.name">
               {{ row.name }}
             </div>
-            <div class="text-xs sm:text-sm text-gray-400 truncate hidden sm:block">{{ row.description }}</div>
+            <div class="text-xs sm:text-sm text-gray-400 truncate hidden sm:block">
+              {{ row.description }}
+            </div>
           </div>
         </div>
       </template>
@@ -62,6 +64,21 @@
         >
           {{ row.category }}
         </span>
+      </template>
+
+      <!-- Departments column -->
+      <template #departments-data="{ row }">
+        <div v-if="row.departments?.length" class="flex flex-wrap gap-1">
+          <UBadge
+            v-for="dept in row.departments"
+            :key="dept"
+            size="sm"
+            class="bg-blue-500/20 text-blue-400"
+          >
+            {{ dept }}
+          </UBadge>
+        </div>
+        <span v-else class="text-gray-400 text-xs">—</span>
       </template>
 
       <!-- Status column with badge and dot -->
@@ -224,6 +241,7 @@ interface Artefact {
   summarized: string
   summary?: string
   isSummarizing?: boolean
+  departments?: string[] // department names assigned to this artifact
 }
 
 interface Props {
@@ -282,6 +300,11 @@ const columns = [
     key: 'size',
     label: 'Size',
     sortable: true,
+  },
+  {
+    key: 'departments',
+    label: 'Departments',
+    sortable: false,
   },
   {
     key: 'status',

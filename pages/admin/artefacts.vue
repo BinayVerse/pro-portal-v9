@@ -24,6 +24,8 @@
       v-model:selected-type="selectedType"
       v-model:selected-status="selectedStatus"
       :available-categories="availableCategories"
+      v-model:selected-department="selectedDepartment"
+      :department-options="departmentFilterOptions"
       :categories-loading="categoriesLoading"
     />
 
@@ -45,6 +47,8 @@
         v-model:is-open="showUploadModal"
         :available-categories="availableCategories"
         :categories-loading="categoriesLoading"
+        :available-departments="departmentsList"
+        :departments-loading="departmentsLoading"
         @close="showUploadModal = false"
         @file-uploaded="handleFileUploaded"
         @google-drive-uploaded="handleGoogleDriveUploaded"
@@ -167,6 +171,7 @@ const safePlanLimits = computed(() => {
 // Reactive data
 const searchQuery = ref('')
 const selectedCategory = ref('')
+const selectedDepartment = ref('')
 const selectedType = ref('')
 const selectedStatus = ref('')
 const showUploadModal = ref(false)
@@ -174,6 +179,8 @@ const showSummaryModal = ref(false)
 const selectedArtefact = ref(null)
 const showViewModal = ref(false)
 const selectedViewArtefact = ref(null)
+const departmentsList = ref<any[]>([])
+const departmentsLoading = ref(false)
 
 // Confirm popup state
 const showConfirmPopup = ref(false)
@@ -225,6 +232,14 @@ const categoriesLoading = computed(() => {
   return loading
 })
 const categoriesError = computed(() => artefactsStore.getCategoryError)
+
+const departmentFilterOptions = computed(() => [
+  { label: 'All Departments', value: '' },
+  ...departmentsList.value.map((d) => ({
+    label: d.name,
+    value: String(d.dept_id),
+  })),
+])
 
 // Computed properties for artefacts and stats from store
 const artefacts = computed(() => artefactsStore.getArtefacts)
@@ -289,16 +304,19 @@ const formatGB = (gb: number): string => {
 const filteredArtefacts = computed(() => {
   return artefacts.value.filter((artefact) => {
     const matchesSearch =
-      !searchQuery.value ||
-      (artefact.name && artefact.name.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
-      (artefact.description &&
-        artefact.description.toLowerCase().includes(searchQuery.value.toLowerCase()))
+      !searchQuery.value || artefact.name?.toLowerCase().includes(searchQuery.value.toLowerCase())
 
     const matchesCategory = !selectedCategory.value || artefact.category === selectedCategory.value
+
     const matchesType = !selectedType.value || artefact.type === selectedType.value
+
     const matchesStatus = !selectedStatus.value || artefact.status === selectedStatus.value
 
-    return matchesSearch && matchesCategory && matchesType && matchesStatus
+    const matchesDepartment =
+      !selectedDepartment.value ||
+      artefact.rawDepartmentIds?.includes(String(selectedDepartment.value))
+
+    return matchesSearch && matchesCategory && matchesType && matchesStatus && matchesDepartment
   })
 })
 
@@ -360,6 +378,7 @@ const confirmDeleteArtefact = async () => {
       showSuccess(result.message)
       // Refresh the artefacts list
       await artefactsStore.fetchArtefacts(orgId.value)
+      await fetchArtifactDepartments()
     } else {
       showError(result.message)
     }
@@ -393,6 +412,7 @@ const confirmReprocessArtefact = async () => {
       showSuccess(result.message)
       // Refresh the artefacts list to show updated status
       await artefactsStore.fetchArtefacts(orgId.value)
+      await fetchArtifactDepartments()
     } else {
       showError(result.message)
     }
@@ -469,6 +489,7 @@ const confirmSummarizeArtefact = async () => {
 
       // Refresh the artefacts list to show updated summarization status
       await artefactsStore.fetchArtefacts(orgId.value)
+      await fetchArtifactDepartments()
     } else {
       showError(result.message)
     }
@@ -532,12 +553,14 @@ const downloadArtefact = async (artefact: any) => {
 const handleFileUploaded = async (artefact: any) => {
   artefactsStore.stopAutoProcessing() // ⬅ STOP WHEN UPLOAD COMPLETES OR STARTS
   await artefactsStore.fetchArtefacts(orgId.value)
+  await fetchArtifactDepartments()
   artefactsStore.startAutoProcessing() // ⬅ RESTART AFTER FINISH
 }
 
 const handleGoogleDriveUploaded = async (files: any[]) => {
   artefactsStore.stopAutoProcessing() // ⬅ STOP
   await artefactsStore.fetchArtefacts(orgId.value)
+  await fetchArtifactDepartments()
   artefactsStore.startAutoProcessing() // ⬅ RESTART
 }
 
@@ -552,6 +575,7 @@ const addCategory = async (category: string) => {
       await artefactsStore.createCategory(trimmedCategory, orgId.value)
       // Refresh artefacts list to update stats if needed
       await artefactsStore.fetchArtefacts(orgId.value)
+      await fetchArtifactDepartments()
     } catch (error) {
       // Show error message to user
       const { showError } = useNotification()
@@ -585,6 +609,7 @@ const confirmDeleteCategory = async () => {
 
         // Refresh artefacts list to update stats and category assignments
         await artefactsStore.fetchArtefacts(orgId.value)
+        await fetchArtifactDepartments()
       }
     } else {
       // Fallback to local management if no orgId
@@ -637,6 +662,24 @@ const initializeCategories = async () => {
   }
 }
 
+// Load departments list for the organization
+const loadDepartments = async () => {
+  await artefactsStore.fetchDepartments(orgId.value)
+  departmentsList.value = artefactsStore.getDepartments
+  departmentsLoading.value = artefactsStore.isDepartmentsLoading
+}
+
+// Fetch departments for all artifacts
+const fetchArtifactDepartments = async () => {
+  await artefactsStore.fetchArtefactDepartments(artefacts.value.map((a) => a.id))
+
+  // Update artefacts with department names for display (converted from IDs)
+  artefacts.value.forEach((artefact) => {
+    const deptIds = artefactsStore.getArtefactDepartments[artefact.id] || []
+    artefact.departments = artefactsStore.getDepartmentNames(deptIds)
+  })
+}
+
 // Initialize page data
 const initializePage = async () => {
   try {
@@ -651,8 +694,14 @@ const initializePage = async () => {
       // Ensure token is available before fetching data
       const token = process.client ? localStorage.getItem('authToken') : null
       if (token) {
-        // Fetch both categories and artefacts (pass orgId for superadmin if available)
-        await Promise.all([initializeCategories(), artefactsStore.fetchArtefacts(orgId.value)])
+        // Fetch categories, artefacts, and departments in parallel
+        await Promise.all([
+          initializeCategories(),
+          artefactsStore.fetchArtefacts(orgId.value),
+          loadDepartments(),
+        ])
+        // After fetching artefacts, fetch their departments
+        await fetchArtifactDepartments()
       }
     }
   } catch (error) {
@@ -739,11 +788,16 @@ const goToPlans = () => {
 // Watch for orgId changes and fetch data
 watch(
   orgId,
-  (newOrgId) => {
+  async (newOrgId) => {
     if (newOrgId && authStore.isLoggedIn) {
       const token = process.client ? localStorage.getItem('authToken') : null
       if (token) {
-        Promise.all([initializeCategories(), artefactsStore.fetchArtefacts(orgId.value)])
+        await Promise.all([
+          initializeCategories(),
+          artefactsStore.fetchArtefacts(orgId.value),
+          loadDepartments(),
+        ])
+        await fetchArtifactDepartments()
       }
     }
   },
