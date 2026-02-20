@@ -151,8 +151,49 @@ export const useArtefactsStore = defineStore('artefacts', {
 
         return {
           success: true,
-          files: data.files || [],
-          message: data.message || 'Files uploaded successfully'
+          files: (data as any).files || [],
+          message: (data as any).message || 'Files uploaded successfully'
+        }
+      } catch (error: any) {
+        // Handle authentication errors using shared handler
+        if (await handleAuthErrorShared(error)) {
+          throw new Error('Session expired. Please sign in again.')
+        }
+
+        return {
+          success: false,
+          files: [],
+          message: handleError(error, 'Failed to upload Google Drive files', true)
+        }
+      } finally {
+        this.isUploadingGoogleDrive = false
+      }
+    },
+
+    // Upload Google Drive files with departments support
+    async uploadGoogleDriveFilesWithDepartments(payload: { files: ArtefactGoogleDriveFile[]; category: string; departments: string[] }, orgId?: string | null) {
+      this.isUploadingGoogleDrive = true
+
+      try {
+        const token = localStorage.getItem('authToken')
+        const url = orgId ? `/api/artefacts/google-drive?org=${encodeURIComponent(String(orgId))}` : '/api/artefacts/google-drive'
+
+        const data = await $fetch(url, {
+          method: 'POST',
+          headers: {
+            Authorization: token ? `Bearer ${token}` : '',
+          },
+          body: {
+            selectedFileDetails: payload.files,
+            category: payload.category,
+            departments: payload.departments, // 🔑 important - pass departments array
+          },
+        })
+
+        return {
+          success: true,
+          files: (data as any).files || [],
+          message: (data as any).message || 'Files uploaded successfully'
         }
       } catch (error: any) {
         // Handle authentication errors using shared handler
@@ -404,6 +445,7 @@ export const useArtefactsStore = defineStore('artefacts', {
               totalArtefacts: number
               processedArtefacts: number
               totalCategories: number
+              totalSizeBytes: number
               totalSize: string
             }
           }
@@ -427,6 +469,7 @@ export const useArtefactsStore = defineStore('artefacts', {
           totalArtefacts: 0,
           processedArtefacts: 0,
           totalCategories: 0,
+          totalSizeBytes: 0,
           totalSize: '0 Bytes'
         }
 
@@ -465,6 +508,7 @@ export const useArtefactsStore = defineStore('artefacts', {
         totalArtefacts: 0,
         processedArtefacts: 0,
         totalCategories: 0,
+        totalSizeBytes: 0,
         totalSize: '0 Bytes'
       }
       this.artefactsError = null
@@ -644,10 +688,13 @@ export const useArtefactsStore = defineStore('artefacts', {
           throw new Error(response.message)
         }
 
+        handleSuccess(response.message || 'Artifact deleted successfully')
+
         return {
           success: true,
           message: response.message || 'Artifact deleted successfully'
         }
+
       } catch (error: any) {
         // Handle authentication errors using shared handler
         if (await handleAuthErrorShared(error)) {
@@ -1003,6 +1050,33 @@ export const useArtefactsStore = defineStore('artefacts', {
         this.departments = []
       } finally {
         this.departmentsLoading = false
+      }
+    },
+
+    // 🔑 Fetch ALL departments without role-based filtering
+    // Used for display/mapping purposes so Department Admins can see all department names
+    async fetchAllDepartments(orgId?: string | null) {
+      try {
+        const token = process.client ? localStorage.getItem('authToken') : null
+        if (!token) {
+          console.warn('No auth token available for loading all departments')
+          return []
+        }
+
+        const url = orgId
+          ? `/api/organizations/all-departments?org_id=${encodeURIComponent(String(orgId))}`
+          : '/api/organizations/all-departments'
+
+        const result = await $fetch<{ data: any[] }>(url, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        return result?.data || []
+      } catch (err: any) {
+        console.error('Failed to load all departments:', err)
+        return []
       }
     },
 

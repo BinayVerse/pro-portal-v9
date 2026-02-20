@@ -4,7 +4,9 @@
       <div class="max-w-7xl">
         <div class="mb-4 sm:mb-6">
           <h1 class="text-lg sm:text-xl lg:text-2xl font-bold text-white">My Plan</h1>
-          <p class="text-xs sm:text-sm text-gray-400">View and manage your organization's subscription.</p>
+          <p class="text-xs sm:text-sm text-gray-400">
+            View and manage your organization's subscription.
+          </p>
         </div>
 
         <div class="space-y-4 sm:space-y-6">
@@ -25,16 +27,17 @@
                           color="red"
                           class="w-4 h-4 cursor-pointer mt-2 ml-4 text-primary-500"
                         /> -->
-                        <UBadge
-                          v-if="!isCurrentPlanFree && !isCurrentPlanUnlimited"
-                          :color="isSubscriptionCancelled ? 'gray' : 'primary'"
-                          variant="soft"
-                          :title="renewalInfoText"
-                          class="ml-2"
-                          size="xs"
-                        >
-                          {{ isSubscriptionCancelled ? 'Auto-renewal off' : 'Auto-renewal on' }}
-                        </UBadge>
+                        <AppTooltip :text="renewalInfoText">
+                          <UBadge
+                            v-if="!isCurrentPlanFree && !isCurrentPlanUnlimited"
+                            :color="isSubscriptionCancelled ? 'gray' : 'primary'"
+                            variant="soft"
+                            class="ml-2"
+                            size="xs"
+                          >
+                            {{ isSubscriptionCancelled ? 'Auto-renewal off' : 'Auto-renewal on' }}
+                          </UBadge>
+                        </AppTooltip>
 
                         <!-- </UTooltip> -->
                       </h3>
@@ -153,6 +156,57 @@
             </UButton>
           </div>
 
+          <!-- Billing History Card -->
+          <div class="bg-dark-800 rounded-lg border border-dark-700 p-4 sm:p-6 mt-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h3 class="text-lg font-semibold text-white">Billing History</h3>
+                <p class="text-gray-400 text-sm mt-1">
+                  View your past invoices and payment details.
+                </p>
+              </div>
+              <AppTooltip v-if="isDisabled" :text="disabledReason" placement="bottom">
+                <UButton
+                  tag="button"
+                  type="button"
+                  color="primary"
+                  :disabled="isDisabled"
+                  @click="handleBillingHistoryClick"
+                  :ui="{
+                    rounded: 'rounded-lg',
+                    font: 'font-medium',
+                    padding: { xs: 'px-4 py-2' },
+                  }"
+                  class="w-full sm:w-auto"
+                >
+                  <span>View Billing History</span>
+                  <template #trailing>
+                    <UIcon name="i-heroicons-chevron-right" class="w-4 h-4" />
+                  </template>
+                </UButton>
+              </AppTooltip>
+              <UButton
+                v-else
+                tag="button"
+                type="button"
+                color="primary"
+                :disabled="isDisabled"
+                @click="handleBillingHistoryClick"
+                :ui="{
+                  rounded: 'rounded-lg',
+                  font: 'font-medium',
+                  padding: { xs: 'px-4 py-2' },
+                }"
+                class="w-full sm:w-auto"
+              >
+                <span>View Billing History</span>
+                <template #trailing>
+                  <UIcon name="i-heroicons-chevron-right" class="w-4 h-4" />
+                </template>
+              </UButton>
+            </div>
+          </div>
+
           <PlansModal
             v-model="modalOpen"
             :org-id="orgId"
@@ -191,7 +245,7 @@ useHead({ title: 'My Plan - provento.ai' })
 definePageMeta({ layout: 'admin', middleware: 'auth' })
 
 import { onMounted, ref, computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '~/composables/useAuth'
 import { useOrganizationStore } from '~/stores/organization/index'
 import { useProfileStore } from '~/stores/profile/index'
@@ -243,7 +297,17 @@ const subscriptionDetails = computed(() => {
 })
 
 const isSubscriptionCancelled = computed(() => {
-  return !!subscriptionDetails.value?.cancellation_details
+  const plan = currentPlan.value
+
+  if (!plan) return false
+
+  // ✅ AWS org → use aws auto renewal flag
+  if (plan.source === 'aws') {
+    return plan.aws_auto_renewal_status === false
+  }
+
+  // ✅ Non-AWS → use existing cancellation_details
+  return !!plan.subscription_details?.cancellation_details
 })
 
 const subscriptionEndDate = computed(() => {
@@ -290,14 +354,20 @@ async function confirmCancelSubscription() {
 }
 
 const renewalInfoText = computed(() => {
-  if (isSubscriptionCancelled.value && subscriptionEndDate.value) {
-    return `This plan will not renew and will expire on ${subscriptionEndDate.value}.`
+  const base =
+    isSubscriptionCancelled.value && subscriptionEndDate.value
+      ? `This plan will not renew and will expire on ${subscriptionEndDate.value}.`
+      : 'This plan will auto-renew at the end of each billing cycle unless cancelled.'
+
+  if (currentPlan.value?.source === 'aws') {
+    return base + ' (Managed via AWS Marketplace)'
   }
 
-  return 'This plan will auto-renew at the end of each billing cycle unless cancelled.'
+  return base
 })
 
 const route = useRoute()
+const router = useRouter()
 const auth = useAuth()
 const userTimeZone = ref('UTC')
 const config = useRuntimeConfig()
@@ -309,14 +379,17 @@ onMounted(async () => {
 
   // initialize/check auth
   await auth.checkAuth()
-  if (!auth.requireAdmin()) return
+  if (!auth.isAuthenticated) {
+    navigateTo('/login')
+    return
+  }
 
   // fetch org plan via store after timezone is set
   await orgStore.fetchOrgPlan(orgId)
 })
 
 const orgIdFromQuery = (route.query?.org || route.query?.org_id) as string | undefined
-const orgId = orgIdFromQuery || auth.user?.org_id || ''
+const orgId = orgIdFromQuery || auth.user.value?.org_id || ''
 
 const orgStore = useOrganizationStore()
 
@@ -350,11 +423,9 @@ const planDaysLeft = computed(() => {
   try {
     const plan = currentPlan.value?.plan
     const start = currentPlan.value?.plan_start_date
-    // console.log('Computing days left for plan:', plan, 'start date:', start)
     if (!plan || !start) return null
 
     const durRaw = (plan.duration || '').toString().trim().toLowerCase()
-    // console.log('Duration raw:', durRaw)
     let amount = 1
     let unit: dayjs.ManipulateType = 'month'
 
@@ -384,11 +455,80 @@ const planDaysLeft = computed(() => {
 
 const planEndsInText = computed(() => {
   const daysLeft = planDaysLeft.value
-  console.log('Plan days left:', daysLeft)
   if (daysLeft === null) return ''
   if (daysLeft < 0) return 'Plan has ended'
   if (daysLeft === 0) return 'Plan expires today'
   return `Current plan will end in ${daysLeft} day${daysLeft === 1 ? '' : 's'}`
+})
+
+// Billing history check
+const hasBillingHistory = ref(false)
+const loadingBillingHistory = ref(true)
+const isUnlimitedPlanFlag = ref(false)
+
+onMounted(async () => {
+  try {
+    const token = localStorage.getItem('authToken')
+    if (!token) {
+      hasBillingHistory.value = false
+      return
+    }
+
+    const now = dayjs()
+    const twoYearsAgo = now.subtract(2, 'year').format('YYYY-MM-DD')
+    const today = now.format('YYYY-MM-DD')
+
+    const response: any = await $fetch('/api/billing/invoices', {
+      headers: { Authorization: `Bearer ${token}` },
+      params: {
+        startDate: twoYearsAgo,
+        endDate: today,
+      },
+    })
+
+    if (response?.success && response.data?.length > 0) {
+      hasBillingHistory.value = true
+      isUnlimitedPlanFlag.value = response.data.some(
+        (invoice: any) => invoice.planName === 'Unlimited',
+      )
+    } else {
+      hasBillingHistory.value = false
+    }
+  } catch (error) {
+    console.error('Failed to fetch billing history:', error)
+    hasBillingHistory.value = false
+  } finally {
+    loadingBillingHistory.value = false
+  }
+})
+
+const handleBillingHistoryClick = (e: Event) => {
+  if (isDisabled.value) {
+    e.preventDefault()
+    e.stopPropagation()
+    return
+  }
+
+  router.push('/admin/plans/billing-history')
+}
+
+const isDisabled = computed(() => {
+  return (
+    loadingBillingHistory.value ||
+    profileStore?.userProfile?.role_id !== 1 ||
+    (isUnlimitedPlanFlag.value && !hasBillingHistory.value) ||
+    !hasBillingHistory.value
+  )
+})
+
+const disabledReason = computed(() => {
+  if (loadingBillingHistory.value) return 'Loading billing history'
+  if (profileStore?.userProfile?.role_id !== 1)
+    return 'Access to billing history is restricted to Company Admins.'
+  if (isUnlimitedPlanFlag.value && !hasBillingHistory.value)
+    return 'Billing history not available for unlimited plan'
+  if (!hasBillingHistory.value) return 'No billing history available'
+  return ''
 })
 </script>
 
@@ -414,5 +554,9 @@ const planEndsInText = computed(() => {
 .plan-expired {
   background: #ef4444; /* red-500 */
   border-color: rgba(239, 68, 68, 0.35);
+}
+/* Ensure full width for the page content */
+.max-w-7xl {
+  max-width: 100%;
 }
 </style>

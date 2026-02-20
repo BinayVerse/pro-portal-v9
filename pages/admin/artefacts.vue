@@ -34,6 +34,7 @@
       :artefacts="filteredArtefacts"
       :summarizing-docs="artefactsStore.getSummarizingDocs"
       :loading="isLoadingArtefacts"
+      :department-name-map="departmentNameMap"
       @view-artefact="viewArtefact"
       @reprocess-artefact="reprocessArtefact"
       @delete-artefact="deleteArtefact"
@@ -49,6 +50,7 @@
         :categories-loading="categoriesLoading"
         :available-departments="departmentsList"
         :departments-loading="departmentsLoading"
+        :department-name-map="departmentNameMap"
         @close="showUploadModal = false"
         @file-uploaded="handleFileUploaded"
         @google-drive-uploaded="handleGoogleDriveUploaded"
@@ -179,7 +181,8 @@ const showSummaryModal = ref(false)
 const selectedArtefact = ref(null)
 const showViewModal = ref(false)
 const selectedViewArtefact = ref(null)
-const departmentsList = ref<any[]>([])
+const departmentsList = ref<any[]>([]) // Role-based filtered departments (for selection/filtering)
+const allDepartmentsList = ref<any[]>([]) // All departments (for name mapping/display)
 const departmentsLoading = ref(false)
 
 // Confirm popup state
@@ -240,6 +243,33 @@ const departmentFilterOptions = computed(() => [
     value: String(d.dept_id),
   })),
 ])
+
+// 🔑 Create department name map for displaying department names in table
+const departmentNameMap = computed(() => {
+  const map: Record<string, string> = {}
+
+  // 🔑 Build map from allDepartmentsList (ALL departments, no filtering)
+  // This ensures Department Admins can see names of all departments, even if they don't have access
+  if (allDepartmentsList.value && Array.isArray(allDepartmentsList.value)) {
+    allDepartmentsList.value.forEach((dept: any) => {
+      if (dept && dept.dept_id && dept.name) {
+        map[String(dept.dept_id)] = dept.name
+      }
+    })
+  }
+
+  // Fallback to store departments if allDepartmentsList is empty
+  const storeDepts = artefactsStore.getDepartments
+  if (storeDepts && Array.isArray(storeDepts)) {
+    storeDepts.forEach((dept: any) => {
+      if (dept && dept.dept_id && dept.name) {
+        map[String(dept.dept_id)] = dept.name
+      }
+    })
+  }
+
+  return map
+})
 
 // Computed properties for artefacts and stats from store
 const artefacts = computed(() => artefactsStore.getArtefacts)
@@ -303,8 +333,15 @@ const formatGB = (gb: number): string => {
 
 const filteredArtefacts = computed(() => {
   return artefacts.value.filter((artefact) => {
+    const searchLower = searchQuery.value.toLowerCase()
+
+    // Search by document name OR department name
     const matchesSearch =
-      !searchQuery.value || artefact.name?.toLowerCase().includes(searchQuery.value.toLowerCase())
+      !searchQuery.value ||
+      artefact.name?.toLowerCase().includes(searchLower) ||
+      (artefact.rawDepartmentIds || []).some((deptId) =>
+        departmentNameMap.value[deptId]?.toLowerCase().includes(searchLower),
+      )
 
     const matchesCategory = !selectedCategory.value || artefact.category === selectedCategory.value
 
@@ -329,7 +366,6 @@ const viewArtefact = (artefact: any) => {
 const reprocessArtefact = async (artefact: any) => {
   // Check if artifact can be reprocessed
   if (!artefact.id) {
-    const { showError } = useNotification()
     showError('Cannot reprocess artifact - invalid artifact data')
     return
   }
@@ -359,13 +395,13 @@ const isReprocessingArtefact = ref(false)
 const showConfirmSummarizeArtefact = ref(false)
 const artefactToSummarize = ref<any>(null)
 const isSummarizingArtefact = ref(false)
+const { showError, showSuccess, showInfo, showWarning } = useNotification()
 
 // Confirm delete handler
 const confirmDeleteArtefact = async () => {
   if (!artefactToDelete.value) return
 
   isDeletingArtefact.value = true
-  const { showError, showSuccess } = useNotification()
 
   try {
     const result = await artefactsStore.deleteArtefact(
@@ -375,15 +411,15 @@ const confirmDeleteArtefact = async () => {
     )
 
     if (result.success) {
-      showSuccess(result.message)
+      // showSuccess(result.message)
       // Refresh the artefacts list
       await artefactsStore.fetchArtefacts(orgId.value)
       await fetchArtifactDepartments()
     } else {
-      showError(result.message)
+      // showError(result.message)
     }
   } catch (error: any) {
-    showError(error.message || 'Failed to delete artifact')
+    // showError(error.message || 'Failed to delete artifact')
   } finally {
     isDeletingArtefact.value = false
     showConfirmDeleteArtefact.value = false
@@ -403,7 +439,6 @@ const confirmReprocessArtefact = async () => {
   if (!artefactToReprocess.value) return
 
   isReprocessingArtefact.value = true
-  const { showError, showSuccess } = useNotification()
 
   try {
     const result = await artefactsStore.reprocessArtefact(artefactToReprocess.value.id, orgId.value)
@@ -436,26 +471,22 @@ const cancelReprocessArtefact = () => {
 const summarizeArtefact = async (artefact: any) => {
   // Check if artifact can be summarized
   if (!artefact.id) {
-    const { showError } = useNotification()
     showError('Cannot summarize artifact - invalid artifact data')
     return
   }
 
   if (artefact.status !== 'processed') {
-    const { showError } = useNotification()
     showError('Document must be processed before summarization')
     return
   }
 
   if (artefact.summarized === 'Yes') {
-    const { showInfo } = useNotification()
     showInfo('Document is already summarized. Use "View Summary" to see the existing summary.')
     return
   }
 
   // Check if document is already being auto-processed
   if (artefactsStore.isDocumentBeingSummarized(artefact.id)) {
-    const { showInfo } = useNotification()
     showInfo('This document is already being processed automatically. Please wait for completion.')
     return
   }
@@ -470,7 +501,6 @@ const confirmSummarizeArtefact = async () => {
   if (!artefactToSummarize.value) return
 
   isSummarizingArtefact.value = true
-  const { showError, showSuccess, showInfo } = useNotification()
 
   try {
     showInfo('Document summarization started! This may take a few moments...')
@@ -516,12 +546,9 @@ const viewSummary = (artefact: any) => {
 
 const downloadArtefact = async (artefact: any) => {
   if (!artefact || !artefact.id) {
-    const { showError } = useNotification()
     showError('Cannot download artifact - invalid artifact data')
     return
   }
-
-  const { showError, showSuccess, showInfo } = useNotification()
 
   try {
     showInfo('Preparing download...')
@@ -578,12 +605,10 @@ const addCategory = async (category: string) => {
       await fetchArtifactDepartments()
     } catch (error) {
       // Show error message to user
-      const { showError } = useNotification()
       showError('Failed to add category. Please try again.')
     }
   } else {
     // Fallback to local management if no orgId
-    const { showWarning } = useNotification()
     showWarning('Category added locally only. Changes will not be saved.')
   }
 }
@@ -613,11 +638,9 @@ const confirmDeleteCategory = async () => {
       }
     } else {
       // Fallback to local management if no orgId
-      const { showWarning } = useNotification()
       showWarning('Category deleted locally only. Changes will not be saved.')
     }
   } catch (error) {
-    const { showError } = useNotification()
     showError('Failed to delete category. Please try again.')
   } finally {
     isDeletingCategory.value = false
@@ -652,11 +675,9 @@ const initializeCategories = async () => {
   } catch (error: any) {
     // Handle specific error types
     if (await handleAuthError(error)) {
-      const { showError } = useNotification()
       showError('Session expired. Please sign in again.')
       return
     } else {
-      const { showError } = useNotification()
       showError('Failed to load categories. Please refresh the page.')
     }
   }
@@ -664,19 +685,40 @@ const initializeCategories = async () => {
 
 // Load departments list for the organization
 const loadDepartments = async () => {
+  // Load two sets of departments:
+  // 1. Role-based filtered departments for selection/filtering (Department Admins see only their departments)
+  // 2. All departments for name mapping (so Department Admins can see names of all departments in documents)
   await artefactsStore.fetchDepartments(orgId.value)
-  departmentsList.value = artefactsStore.getDepartments
+  departmentsList.value = artefactsStore.getDepartments // For selection/filtering
+
+  // 🔑 Load ALL departments for name mapping (no role-based filtering)
+  const allDepts = await artefactsStore.fetchAllDepartments(orgId.value)
+  allDepartmentsList.value = allDepts // For display mapping
+
   departmentsLoading.value = artefactsStore.isDepartmentsLoading
 }
 
-// Fetch departments for all artifacts
+// Fetch departments for all artifacts (now part of list API response)
 const fetchArtifactDepartments = async () => {
-  await artefactsStore.fetchArtefactDepartments(artefacts.value.map((a) => a.id))
-
-  // Update artefacts with department names for display (converted from IDs)
+  // Departments are now already included in the artefacts list API response
+  // Keep both IDs and names for proper display
   artefacts.value.forEach((artefact) => {
-    const deptIds = artefactsStore.getArtefactDepartments[artefact.id] || []
-    artefact.departments = artefactsStore.getDepartmentNames(deptIds)
+    const deptIds = artefact.departments || [] // Already populated from list API
+
+    // Ensure dept IDs are strings and filter out any undefined/null values
+    const cleanDeptIds = deptIds
+      .map((id: any) => {
+        if (typeof id === 'object' && id !== null && 'dept_id' in id) {
+          // Handle case where departments might be objects with dept_id
+          return String(id.dept_id)
+        }
+        return String(id)
+      })
+      .filter((id: string) => id && id.length > 0 && id !== 'null' && id !== 'undefined')
+
+    artefact.rawDepartmentIds = cleanDeptIds // 🔑 important - keep array of dept IDs for filtering
+    // Store cleaned dept IDs for the table to use with departmentNameMap
+    artefact.departments = cleanDeptIds
   })
 }
 
@@ -694,13 +736,13 @@ const initializePage = async () => {
       // Ensure token is available before fetching data
       const token = process.client ? localStorage.getItem('authToken') : null
       if (token) {
-        // Fetch categories, artefacts, and departments in parallel
-        await Promise.all([
-          initializeCategories(),
-          artefactsStore.fetchArtefacts(orgId.value),
-          loadDepartments(),
-        ])
-        // After fetching artefacts, fetch their departments
+        // 🔑 Load departments FIRST so departmentNameMap is populated
+        await loadDepartments()
+
+        // Then fetch categories and artefacts in parallel
+        await Promise.all([initializeCategories(), artefactsStore.fetchArtefacts(orgId.value)])
+
+        // After fetching artefacts, map their departments
         await fetchArtifactDepartments()
       }
     }
@@ -792,11 +834,13 @@ watch(
     if (newOrgId && authStore.isLoggedIn) {
       const token = process.client ? localStorage.getItem('authToken') : null
       if (token) {
-        await Promise.all([
-          initializeCategories(),
-          artefactsStore.fetchArtefacts(orgId.value),
-          loadDepartments(),
-        ])
+        // 🔑 Load departments FIRST so departmentNameMap is populated before artifacts are displayed
+        await loadDepartments()
+
+        // Then fetch categories and artifacts in parallel
+        await Promise.all([initializeCategories(), artefactsStore.fetchArtefacts(orgId.value)])
+
+        // After fetching artifacts, map their departments
         await fetchArtifactDepartments()
       }
     }
@@ -834,6 +878,19 @@ watch(
   { deep: true },
 )
 
+// 🔑 Watch for departments list changes and re-map artifact departments
+watch(
+  () => [departmentsList.value, allDepartmentsList.value],
+  () => {
+    // When departments load, ensure artifacts have proper dept IDs (not names)
+    artefacts.value.forEach((artefact) => {
+      const deptIds = artefact.rawDepartmentIds || artefact.departments || []
+      artefact.departments = deptIds.map(String)
+    })
+  },
+  { deep: true },
+)
+
 // Initialize everything on mount
 onMounted(async () => {
   await initializePage()
@@ -848,7 +905,6 @@ onMounted(async () => {
     if (pending && pending.length > 0) {
       // Show a single notification listing files being summarized
       try {
-        const { showInfo } = useNotification()
         const names = pending
           .map((d: any) => d.name)
           .slice(0, 10)

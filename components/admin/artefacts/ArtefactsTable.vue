@@ -46,9 +46,11 @@
       <template #artefact-data="{ row }">
         <div class="flex items-center">
           <div class="min-w-[8rem] sm:min-w-[20rem] max-w-[16rem] sm:max-w-[32rem]">
-            <div class="text-xs sm:text-sm font-medium text-white truncate" :title="row.name">
-              {{ row.name }}
-            </div>
+            <AppTooltip :text="row.name">
+              <div class="text-xs sm:text-sm font-medium text-white truncate">
+                {{ row.name }}
+              </div>
+            </AppTooltip>
             <div class="text-xs sm:text-sm text-gray-400 truncate hidden sm:block">
               {{ row.description }}
             </div>
@@ -66,19 +68,40 @@
         </span>
       </template>
 
-      <!-- Departments column -->
+      <!-- Department column -->
       <template #departments-data="{ row }">
-        <div v-if="row.departments?.length" class="flex flex-wrap gap-1">
+        <!-- Common badge -->
+        <AppTooltip
+          v-if="!row.departments || row.departments.length === 0"
+          :text="getDepartmentTooltip(row.departments)"
+        >
           <UBadge
-            v-for="dept in row.departments"
-            :key="dept"
-            size="sm"
-            class="bg-blue-500/20 text-blue-400"
+            v-if="!row.departments || row.departments.length === 0"
+            size="xs"
+            color="gray"
+            class="font-medium"
+            :ui="{ rounded: 'rounded-full' }"
           >
-            {{ dept }}
+            Common
           </UBadge>
-        </div>
-        <span v-else class="text-gray-400 text-xs">—</span>
+        </AppTooltip>
+
+        <!-- Department badges -->
+        <AppTooltip v-else :text="getDepartmentTooltip(row.departments)">
+          <div class="flex flex-wrap gap-1">
+            <UBadge
+              v-for="deptId in row.departments"
+              :key="deptId"
+              size="xs"
+              variant="solid"
+              color="blue"
+              class="font-medium"
+              :ui="{ rounded: 'rounded-full' }"
+            >
+              {{ props.departmentNameMap[deptId] || 'Unknown' }}
+            </UBadge>
+          </div>
+        </AppTooltip>
       </template>
 
       <!-- Status column with badge and dot -->
@@ -144,24 +167,26 @@
       <!-- Actions column with action buttons -->
       <template #uploadedOn-data="{ row }">
         <div class="flex flex-col">
-          <div class="text-sm font-medium text-white truncate" :title="row.uploadedBy">
-            {{ row.uploadedBy }}
-          </div>
+          <AppTooltip :text="`Uploaded by ${row.uploadedBy}`">
+            <div class="text-sm font-medium text-white truncate">
+              {{ row.uploadedBy }}
+            </div>
+          </AppTooltip>
           <div class="text-xs text-gray-400 mt-1">{{ row.lastUpdated }}</div>
         </div>
       </template>
 
       <template #actions-data="{ row }">
         <div class="flex items-center space-x-2">
-          <UTooltip text="View Artifact">
+          <AppTooltip text="View Artifact">
             <button
               @click="$emit('viewArtefact', row)"
               class="text-blue-400 hover:text-blue-300 transition-colors"
             >
               <UIcon name="heroicons:eye" class="w-4 h-4" />
             </button>
-          </UTooltip>
-          <UTooltip
+          </AppTooltip>
+          <AppTooltip
             :text="
               row.status === 'processing'
                 ? 'Document is processing'
@@ -186,15 +211,15 @@
             >
               <UIcon name="heroicons:arrow-path-rounded-square" class="w-4 h-4" />
             </button>
-          </UTooltip>
-          <UTooltip text="Delete Artifact">
+          </AppTooltip>
+          <AppTooltip text="Delete Artifact">
             <button
               @click="$emit('deleteArtefact', row)"
               class="text-red-400 hover:text-red-300 transition-colors"
             >
               <UIcon name="heroicons:trash" class="w-4 h-4" />
             </button>
-          </UTooltip>
+          </AppTooltip>
         </div>
       </template>
     </UTable>
@@ -241,17 +266,19 @@ interface Artefact {
   summarized: string
   summary?: string
   isSummarizing?: boolean
-  departments?: string[] // department names assigned to this artifact
+  departments?: string[] // department IDs assigned to this artifact (will be looked up in departmentNameMap)
 }
 
 interface Props {
   artefacts: Artefact[]
   summarizingDocs?: Set<number>
   loading?: boolean
+  departmentNameMap?: Record<string, string> // dept_id -> dept_name
 }
 
 const props = withDefaults(defineProps<Props>(), {
   loading: false,
+  departmentNameMap: () => ({}),
 })
 
 // Pagination state
@@ -303,8 +330,9 @@ const columns = [
   },
   {
     key: 'departments',
-    label: 'Departments',
+    label: 'Department',
     sortable: false,
+    class: 'w-40 max-w-40',
   },
   {
     key: 'status',
@@ -387,17 +415,17 @@ const sortedRows = computed(() => {
         if (!dateStr) return new Date(0).getTime()
         // If already a number (timestamp), return as-is
         if (typeof dateStr === 'number' && !Number.isNaN(dateStr)) return dateStr
-        // Accept 'DD/MM/YYYY' or 'DD-MM-YYYY' or ISO strings
+        // Accept 'MM/DD/YYYY' or 'MM-DD-YYYY' or ISO strings
         if (typeof dateStr === 'string') {
-          // Try DD/MM/YYYY or DD-MM-YYYY
+          // Try MM/DD/YYYY or MM-DD-YYYY
           const parts = dateStr.includes('/')
             ? dateStr.split('/')
             : dateStr.includes('-')
               ? dateStr.split('-')
               : null
           if (parts && parts.length === 3) {
-            const [day, month, year] = parts.map((p: string) => Number(p))
-            if (!Number.isNaN(day) && !Number.isNaN(month) && !Number.isNaN(year)) {
+            const [month, day, year] = parts.map((p: string) => Number(p))
+            if (!Number.isNaN(month) && !Number.isNaN(day) && !Number.isNaN(year)) {
               return new Date(year, month - 1, day).getTime()
             }
           }
@@ -482,5 +510,14 @@ const getStatusDotColor = (status: string) => {
 
 const capitalizeStatus = (status: string) => {
   return status.charAt(0).toUpperCase() + status.slice(1)
+}
+
+// Helper function to get tooltip text for departments
+const getDepartmentTooltip = (deptIds?: string[]): string => {
+  if (!deptIds || deptIds.length === 0) {
+    return 'Common - Accessible to all users in the organization'
+  }
+  const deptNames = deptIds.map((id: string) => props.departmentNameMap[id] || 'Unknown').join(', ')
+  return `Department-specific - Accessible only to: ${deptNames}`
 }
 </script>

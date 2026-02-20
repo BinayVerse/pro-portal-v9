@@ -1,3 +1,4 @@
+<!-- /layouts/admin.vue -->
 <template>
   <div class="bg-black flex overflow-hidden h-screen max-md:min-h-[100dvh] max-md:h-auto">
     <!-- Mobile menu overlay -->
@@ -60,6 +61,7 @@
               :active="$route.name === 'admin-dashboard' || pendingRoute === 'admin-dashboard'"
               :collapsed="isMobile || isTablet ? false : isCollapsed"
               :disabled="!isProfileComplete"
+              :label="'Dashboard'"
               :tooltip="
                 isProfileComplete ? 'Dashboard' : 'Complete your profile to access this section'
               "
@@ -73,9 +75,14 @@
                 pendingRoute === 'admin-departments'
               "
               :collapsed="isMobile || isTablet ? false : isCollapsed"
-              :disabled="!isProfileComplete"
+              :disabled="isDepartmentAdmin || !isProfileComplete"
+              :label="'Departments'"
               :tooltip="
-                isProfileComplete ? 'Departments' : 'Complete your profile to access this section'
+                isDepartmentAdmin
+                  ? 'Access restricted for Department Admin'
+                  : isProfileComplete
+                    ? 'Departments'
+                    : 'Complete your profile to access this section'
               "
             />
 
@@ -85,6 +92,7 @@
               :active="$route.name === 'admin-users' || pendingRoute === 'admin-users'"
               :collapsed="isMobile || isTablet ? false : isCollapsed"
               :disabled="!isProfileComplete"
+              :label="'Users'"
               :tooltip="
                 isProfileComplete ? 'Users' : 'Complete your profile to access this section'
               "
@@ -96,6 +104,7 @@
               :active="$route.name === 'admin-artefacts' || pendingRoute === 'admin-artefacts'"
               :collapsed="isMobile || isTablet ? false : isCollapsed"
               :disabled="!isProfileComplete"
+              :label="'Artifacts'"
               :tooltip="
                 isProfileComplete ? 'Artifacts' : 'Complete your profile to access this section'
               "
@@ -107,6 +116,7 @@
               :active="$route.name === 'admin-analytics' || pendingRoute === 'admin-analytics'"
               :collapsed="isMobile || isTablet ? false : isCollapsed"
               :disabled="!isProfileComplete"
+              :label="'Analytics'"
               :tooltip="
                 isProfileComplete ? 'Analytics' : 'Complete your profile to access this section'
               "
@@ -115,9 +125,10 @@
             <SidebarButton
               :to="makeOrgLink('/admin/plans')"
               :icon="'i-heroicons-currency-dollar'"
-              :active="$route.name === 'admin-plans' || pendingRoute === 'admin-plans'"
+              :active="isPlansActive"
               :collapsed="isMobile || isTablet ? false : isCollapsed"
               :disabled="!isProfileComplete"
+              :label="'Plans & Billing History'"
               :tooltip="
                 isProfileComplete
                   ? 'Plans & Billing History'
@@ -146,13 +157,6 @@
                   'justify-between px-3 py-2 space-x-3': !isCollapsed || isMobile || isTablet,
                 }"
                 :disabled="!isProfileComplete"
-                :title="
-                  isCollapsed && !(isMobile || isTablet)
-                    ? 'Integrations'
-                    : !isProfileComplete
-                      ? 'Complete your profile to access this section'
-                      : 'Integrations'
-                "
                 @mouseenter="handleIntegrationsMouseEnter"
               >
                 <div
@@ -193,7 +197,7 @@
                   <div class="px-3 py-2 border-b border-dark-700">
                     <span class="text-sm font-medium text-gray-300">Integrations</span>
                   </div>
-                  <div class="space-y-1 px-1">
+                  <div class="flex flex-col gap-1 px-1">
                     <SidebarButton
                       :to="makeOrgLink('/admin/integrations')"
                       :icon="'heroicons:eye'"
@@ -203,7 +207,30 @@
                       "
                       :collapsed="false"
                       size="sm"
-                      tooltip="Overview"
+                      :label="'Overview'"
+                      :tooltip="
+                        isDepartmentAdmin ? 'Access restricted for Department Admin' : 'Overview'
+                      "
+                      :disabled="isDepartmentAdmin"
+                      class="justify-start w-full"
+                      @click="closeMobileSidebar"
+                    />
+                    <SidebarButton
+                      :to="makeOrgLink('/admin/integrations/applications')"
+                      :icon="'heroicons:squares-2x2'"
+                      :active="
+                        $route.name === 'admin-integrations-applications' ||
+                        pendingRoute === 'admin-integrations-applications'
+                      "
+                      :collapsed="false"
+                      size="sm"
+                      :label="'Applications'"
+                      :tooltip="
+                        isDepartmentAdmin
+                          ? 'Access restricted for Department Admin'
+                          : 'Applications'
+                      "
+                      :disabled="isDepartmentAdmin"
                       class="justify-start w-full"
                       @click="closeMobileSidebar"
                     />
@@ -216,7 +243,11 @@
                       "
                       :collapsed="false"
                       size="sm"
-                      tooltip="Slack"
+                      :label="'Slack'"
+                      :tooltip="
+                        isDepartmentAdmin ? 'Access restricted for Department Admin' : 'Slack'
+                      "
+                      :disabled="isDepartmentAdmin"
                       class="justify-start w-full"
                       @click="closeMobileSidebar"
                     />
@@ -229,7 +260,11 @@
                       "
                       :collapsed="false"
                       size="sm"
-                      tooltip="Teams"
+                      :label="'Teams'"
+                      :tooltip="
+                        isDepartmentAdmin ? 'Access restricted for Department Admin' : 'Teams'
+                      "
+                      :disabled="isDepartmentAdmin"
                       class="justify-start w-full"
                       @click="closeMobileSidebar"
                     />
@@ -242,7 +277,11 @@
                       "
                       :collapsed="false"
                       size="sm"
-                      tooltip="WhatsApp"
+                      :label="'WhatsApp'"
+                      :tooltip="
+                        isDepartmentAdmin ? 'Access restricted for Department Admin' : 'WhatsApp'
+                      "
+                      :disabled="isDepartmentAdmin"
                       class="justify-start w-full"
                       @click="closeMobileSidebar"
                     />
@@ -255,7 +294,11 @@
                       "
                       :collapsed="false"
                       size="sm"
-                      tooltip="iMessage"
+                      :label="'iMessage'"
+                      :tooltip="
+                        isDepartmentAdmin ? 'Access restricted for Department Admin' : 'iMessage'
+                      "
+                      :disabled="isDepartmentAdmin"
                       class="justify-start w-full"
                       @click="closeMobileSidebar"
                     />
@@ -266,7 +309,7 @@
               <!-- Expanded State: Normal Submenu -->
               <div
                 v-show="integrationsOpen && (!isCollapsed || isMobile || isTablet)"
-                class="ml-8 mt-2 space-y-1"
+                class="ml-8 mt-2 flex flex-col gap-1"
               >
                 <SidebarButton
                   :to="makeOrgLink('/admin/integrations')"
@@ -276,7 +319,27 @@
                   "
                   :collapsed="false"
                   size="sm"
-                  tooltip="Overview"
+                  :label="'Overview'"
+                  :tooltip="
+                    isDepartmentAdmin ? 'Access restricted for Department Admin' : 'Overview'
+                  "
+                  :disabled="isDepartmentAdmin"
+                  @click="closeMobileSidebar"
+                />
+                <SidebarButton
+                  :to="makeOrgLink('/admin/integrations/applications')"
+                  :icon="'i-heroicons:cube-transparent-20-solid'"
+                  :active="
+                    $route.name === 'admin-integrations-applications' ||
+                    pendingRoute === 'admin-integrations-applications'
+                  "
+                  :collapsed="false"
+                  size="sm"
+                  :label="'Applications'"
+                  :tooltip="
+                    isDepartmentAdmin ? 'Access restricted for Department Admin' : 'Applications'
+                  "
+                  :disabled="isDepartmentAdmin"
                   @click="closeMobileSidebar"
                 />
                 <SidebarButton
@@ -288,7 +351,9 @@
                   "
                   :collapsed="false"
                   size="sm"
-                  tooltip="Slack"
+                  :label="'Slack'"
+                  :tooltip="isDepartmentAdmin ? 'Access restricted for Department Admin' : 'Slack'"
+                  :disabled="isDepartmentAdmin"
                   @click="closeMobileSidebar"
                 />
                 <SidebarButton
@@ -300,7 +365,9 @@
                   "
                   :collapsed="false"
                   size="sm"
-                  tooltip="Teams"
+                  :label="'Teams'"
+                  :tooltip="isDepartmentAdmin ? 'Access restricted for Department Admin' : 'Teams'"
+                  :disabled="isDepartmentAdmin"
                   @click="closeMobileSidebar"
                 />
                 <SidebarButton
@@ -312,7 +379,11 @@
                   "
                   :collapsed="false"
                   size="sm"
-                  tooltip="WhatsApp"
+                  :label="'WhatsApp'"
+                  :tooltip="
+                    isDepartmentAdmin ? 'Access restricted for Department Admin' : 'WhatsApp'
+                  "
+                  :disabled="isDepartmentAdmin"
                   @click="closeMobileSidebar"
                 />
                 <SidebarButton
@@ -324,7 +395,11 @@
                   "
                   :collapsed="false"
                   size="sm"
-                  tooltip="iMessage"
+                  :label="'iMessage'"
+                  :tooltip="
+                    isDepartmentAdmin ? 'Access restricted for Department Admin' : 'iMessage'
+                  "
+                  :disabled="isDepartmentAdmin"
                   @click="closeMobileSidebar"
                 />
               </div>
@@ -351,17 +426,38 @@
       </div>
 
       <!-- Desktop Sidebar Floating Collapse Toggle -->
-      <button
+      <div
         v-if="!isMobile && !isTablet"
-        @click="toggleSidebar"
         class="sidebar-edge-toggle"
-        :title="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+        :class="{ expanded: !isCollapsed, collapsed: isCollapsed }"
+        style="top: 50%; transform: translateY(-50%); z-index: 999"
       >
-        <UIcon
-          :name="isCollapsed ? 'heroicons:chevron-right' : 'heroicons:chevron-left'"
-          class="sidebar-edge-icon"
-        />
-      </button>
+        <UTooltip
+          :text="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+          :popper="{
+            placement: 'right',
+            strategy: 'fixed',
+            modifiers: [
+              { name: 'offset', options: { offset: [0, 14] } },
+              { name: 'flip', options: { fallbackPlacements: [] } },
+            ],
+          }"
+          :ui="{
+            container: 'z-[9999]',
+            content:
+              'bg-dark-800 text-gray-100 text-base font-semibold px-10 py-7 rounded-lg border border-dark-700 shadow-2xl whitespace-nowrap',
+          }"
+        >
+          <button @click="toggleSidebar" class="sidebar-edge-toggle-inner">
+            <UIcon
+              v-if="isCollapsed"
+              name="i-material-symbols:arrow-forward-ios-rounded"
+              class="w-4 h-4"
+            />
+            <UIcon v-else name="i-material-symbols:arrow-back-ios-new-rounded" class="w-4 h-4" />
+          </button>
+        </UTooltip>
+      </div>
     </aside>
 
     <!-- Main content area (offset for fixed sidebar) -->
@@ -635,6 +731,8 @@ const integrationsDropdownTop = ref(0)
 const integrationsButtonRef = ref<HTMLElement | null>(null)
 const pendingRoute = ref<string | null>(null)
 
+const isDepartmentAdmin = computed(() => auth.user?.role_id === 3)
+
 const isPlanExpired = computed(() => {
   const expiry = profileStore.userProfile?.plan_expiry
   if (!expiry) return false
@@ -644,6 +742,8 @@ const isPlanExpired = computed(() => {
 
   return expiryDate.getTime() < Date.now()
 })
+
+const isPlansActive = computed(() => route.path.startsWith('/admin/plans'))
 
 const updateIntegrationsDropdownPosition = () => {
   if (integrationsButtonRef.value && isCollapsed.value) {
@@ -710,18 +810,11 @@ const checkScreen = () => {
     sidebarOpen.value = false
   }
 
-  // CHANGED: Don't collapse sidebar on mobile/tablet - show full sidebar
+  // CHANGED: Always expanded on mobile/tablet
   if (isMobile.value || isTablet.value) {
-    isCollapsed.value = false // Changed from true to false
+    isCollapsed.value = false
   } else {
-    // Load saved state from localStorage for desktop
-    const savedState = localStorage.getItem('sidebar-collapsed')
-    if (savedState !== null) {
-      isCollapsed.value = savedState === 'true'
-    } else {
-      // Default to expanded on desktop
-      isCollapsed.value = false
-    }
+    isCollapsed.value = false // Always expanded after login
   }
 }
 
@@ -738,7 +831,7 @@ onMounted(async () => {
   await checkAndShowSubscriptionModal()
 })
 
-onMounted(() => {
+const setupRouterGuards = () => {
   router.beforeEach((to, from, next) => {
     pendingRoute.value = to.name as string
     next()
@@ -752,19 +845,16 @@ onMounted(() => {
       sidebarOpen.value = false
     }
   })
-})
+}
+
+// Set up router guards
+setupRouterGuards()
+
 // Cleanup resize listener on unmount
 onUnmounted(() => {
   if (typeof window !== 'undefined') {
     window.removeEventListener('resize', checkScreen)
     window.removeEventListener('resize', updateIntegrationsDropdownPosition)
-  }
-})
-
-// Save collapsed state to localStorage when it changes (desktop only)
-watch(isCollapsed, (newValue) => {
-  if (typeof window !== 'undefined' && !isMobile.value && !isTablet.value) {
-    localStorage.setItem('sidebar-collapsed', String(newValue))
   }
 })
 
@@ -1091,6 +1181,10 @@ aside {
   position: relative;
 }
 
+:deep(.u-tooltip) {
+  max-width: none;
+}
+
 /* Prevent tooltip cutoff */
 aside {
   overflow: visible !important;
@@ -1108,9 +1202,8 @@ aside {
 
 /* Floating sidebar edge toggle (Chargebee-style) */
 .sidebar-edge-toggle {
-  position: absolute;
+  position: fixed;
   top: 50%;
-  right: -14px;
   transform: translateY(-50%);
   width: 28px;
   height: 48px;
@@ -1121,8 +1214,34 @@ aside {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 60;
-  transition: background 0.2s ease;
+  z-index: 999;
+  transition: left 0.3s ease;
+  pointer-events: auto; /* Keep button clickable */
+}
+
+.sidebar-edge-toggle-inner {
+  width: 28px;
+  height: 50px;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.sidebar-edge-toggle-inner:hover {
+  background: #020617;
+}
+
+.sidebar-edge-toggle.expanded {
+  left: 15rem; /* w-64 = 16rem */
+}
+
+.sidebar-edge-toggle.collapsed {
+  left: 3rem; /* w-16 = 4rem */
 }
 
 .sidebar-edge-toggle:hover {
