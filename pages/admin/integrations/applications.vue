@@ -38,14 +38,14 @@
     </div>
 
     <!-- Applications List -->
-    <div v-if="filteredApplications.length > 0" class="space-y-3" @click="activeConnectionMenu = null">
+    <div v-if="filteredApplications.length > 0" class="space-y-3" @click="activeConnectionMenu = null; activeAppStatusMenu = null">
       <div
         v-for="app in filteredApplications"
         :key="app.id"
-        class="bg-dark-800 border border-dark-700 rounded-lg overflow-hidden hover:border-dark-600 transition-colors"
+        class="bg-dark-800 border border-dark-700 rounded-lg hover:border-dark-600 transition-colors"
       >
         <!-- Application Title Bar -->
-        <div class="px-4 sm:px-6 py-4 flex items-center justify-between bg-dark-800 hover:bg-dark-700/30 transition-colors">
+        <div class="px-4 sm:px-6 py-4 flex items-center justify-between bg-dark-800 hover:bg-dark-700/30 transition-colors overflow-visible">
           <!-- Left: Icon + Name -->
           <div class="flex items-center gap-4 flex-1 min-w-0">
             <!-- Application Icon -->
@@ -53,7 +53,9 @@
               class="w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center"
               :class="getIconBackground(app)"
             >
-              <UIcon :name="getAppIcon(app)" class="w-6 h-6 text-white" />
+              <AppTooltip :text="app.provider || app.name">
+                <UIcon :name="getAppIcon(app)" class="w-6 h-6 text-white" />
+              </AppTooltip>
             </div>
 
             <!-- Application Name + Details -->
@@ -97,16 +99,20 @@
 
             <!-- Status Change Dropdown -->
             <div class="relative" @click.stop>
-              <UButton
-                color="gray"
-                variant="ghost"
-                icon="heroicons:cog-6-tooth"
-                size="sm"
-                @click.stop="toggleAppStatusMenu(app.id)"
-              />
+              <AppTooltip text="Change status">
+                <UButton
+                  color="gray"
+                  variant="ghost"
+                  icon="heroicons:cog-6-tooth"
+                  size="sm"
+                  data-menu-trigger
+                  @click.stop="toggleAppStatusMenu(app.id)"
+                />
+              </AppTooltip>
               <div
                 v-if="activeAppStatusMenu === app.id"
-                class="absolute right-0 mt-1 w-48 bg-dark-800 border border-dark-700 rounded-lg shadow-lg py-1 z-10"
+                class="absolute right-0 mt-1 w-48 bg-dark-800 border border-dark-700 rounded-lg shadow-lg py-1 z-50 top-full"
+                data-menu-dropdown
                 @click.stop
               >
                 <button
@@ -143,29 +149,33 @@
             </div>
 
             <!-- Eye Icon Toggle -->
-            <UButton
-              @click="toggleExpandedRow(app.id)"
-              variant="ghost"
-              :color="expandedRows.includes(app.id) ? 'primary' : 'gray'"
-              :icon="expandedRows.includes(app.id) ? 'heroicons:eye-slash' : 'heroicons:eye'"
-              size="sm"
-            />
+            <AppTooltip :text="expandedRows.includes(app.id) ? 'Collapse details' : 'Expand details'">
+              <UButton
+                @click="toggleExpandedRow(app.id)"
+                variant="ghost"
+                :color="expandedRows.includes(app.id) ? 'primary' : 'gray'"
+                :icon="expandedRows.includes(app.id) ? 'heroicons:eye-slash' : 'heroicons:eye'"
+                size="sm"
+              />
+            </AppTooltip>
 
             <!-- Delete Icon -->
-            <UButton
-              @click="deleteApplication(app.id)"
-              variant="ghost"
-              color="red"
-              icon="heroicons:trash-20-solid"
-              size="sm"
-            />
+            <AppTooltip text="Delete application">
+              <UButton
+                @click="deleteApplication(app.id)"
+                variant="ghost"
+                color="red"
+                icon="heroicons:trash-20-solid"
+                size="sm"
+              />
+            </AppTooltip>
           </div>
         </div>
 
         <!-- Expanded Details -->
         <div
           v-if="expandedRows.includes(app.id)"
-          class="border-t border-dark-700 bg-dark-900/50 px-4 sm:px-6 py-4 space-y-4"
+          class="border-t border-dark-700 bg-dark-900/50 px-4 sm:px-6 py-4 space-y-4 overflow-hidden"
         >
           <!-- Credentials Section -->
           <div v-if="app.client_id || app.client_secret || app.api_key || app.redirect_uri" class="space-y-3">
@@ -240,16 +250,20 @@
 
                     <!-- Status Dropdown -->
                     <div class="relative" @click.stop>
-                      <UButton
-                        color="gray"
-                        variant="ghost"
-                        icon="heroicons:cog-6-tooth"
-                        size="sm"
-                        @click.stop="toggleConnectionStatusMenu(connection.id)"
-                      />
+                      <AppTooltip text="Change connection status">
+                        <UButton
+                          color="gray"
+                          variant="ghost"
+                          icon="heroicons:cog-6-tooth"
+                          size="sm"
+                          data-menu-trigger
+                          @click.stop="toggleConnectionStatusMenu(connection.id)"
+                        />
+                      </AppTooltip>
                       <div
                         v-if="activeConnectionMenu === connection.id"
-                        class="absolute right-0 mt-1 w-48 bg-dark-800 border border-dark-700 rounded-lg shadow-lg py-1 z-10"
+                        class="absolute right-0 mt-1 w-48 bg-dark-800 border border-dark-700 rounded-lg shadow-lg py-1 z-50 top-full"
+                        data-menu-dropdown
                         @click.stop
                       >
                         <button
@@ -276,22 +290,26 @@
                     </div>
 
                     <!-- Edit Icon -->
-                    <UButton
-                      variant="ghost"
-                      color="gray"
-                      icon="heroicons:pencil"
-                      size="sm"
-                      @click="editConnection(app.id, connection)"
-                    />
+                    <AppTooltip text="Edit connection">
+                      <UButton
+                        variant="ghost"
+                        color="gray"
+                        icon="heroicons:pencil"
+                        size="sm"
+                        @click="editConnection(app.id, connection)"
+                      />
+                    </AppTooltip>
 
                     <!-- Delete Icon -->
-                    <UButton
-                      variant="ghost"
-                      color="red"
-                      icon="heroicons:trash-20-solid"
-                      size="sm"
-                      @click="deleteConnection(app.id, connection.id)"
-                    />
+                    <AppTooltip text="Delete connection">
+                      <UButton
+                        variant="ghost"
+                        color="red"
+                        icon="heroicons:trash-20-solid"
+                        size="sm"
+                        @click="deleteConnection(app.id, connection.id)"
+                      />
+                    </AppTooltip>
                   </div>
                 </div>
 
@@ -347,7 +365,21 @@
     </div>
 
     <!-- Add/Edit Application Modal -->
-    <UModal v-model="showApplicationModal" title="Add New Application" size="lg">
+    <UModal v-model="showApplicationModal" size="lg">
+      <template #header>
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold text-white">
+            {{ editingAppId ? 'Edit Application' : 'Add New Application' }}
+          </h2>
+          <UButton
+            color="gray"
+            variant="ghost"
+            icon="heroicons:x-mark"
+            size="sm"
+            @click="closeApplicationModal"
+          />
+        </div>
+      </template>
       <div class="p-6 space-y-4">
         <!-- Select Agent -->
         <div>
@@ -365,7 +397,7 @@
           <label class="block text-sm font-medium text-white mb-2">Select Module *</label>
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <button
-              v-for="module in modules"
+              v-for="module in filteredModules"
               :key="module"
               @click="applicationForm.module = module"
               :class="[
@@ -385,7 +417,7 @@
           <label class="block text-sm font-medium text-white mb-2">Select Provider *</label>
           <div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
             <button
-              v-for="provider in providers"
+              v-for="provider in filteredProviders"
               :key="provider"
               @click="applicationForm.provider = provider"
               :class="[
@@ -399,6 +431,16 @@
               <span class="text-xs text-gray-300 text-center">{{ provider }}</span>
             </button>
           </div>
+        </div>
+
+        <!-- Application Name -->
+        <div>
+          <label class="block text-sm font-medium text-white mb-2">Application Name *</label>
+          <UInput
+            v-model="applicationForm.name"
+            placeholder="e.g., Main Payroll"
+            class="w-full"
+          />
         </div>
 
         <!-- API Credentials -->
@@ -425,20 +467,20 @@
           </div>
 
           <div>
-            <label class="block text-xs text-gray-400 mb-1">Redirect URI</label>
+            <label class="block text-xs text-gray-400 mb-1">API Key</label>
             <UInput
-              v-model="applicationForm.redirect_uri"
-              placeholder="https://example.com/callback"
+              v-model="applicationForm.api_key"
+              type="password"
+              placeholder="Enter API key"
               class="w-full"
             />
           </div>
 
           <div>
-            <label class="block text-xs text-gray-400 mb-1">API Key (Optional)</label>
+            <label class="block text-xs text-gray-400 mb-1">Login URL</label>
             <UInput
-              v-model="applicationForm.api_key"
-              type="password"
-              placeholder="Enter API key if applicable"
+              v-model="applicationForm.login_url"
+              placeholder="https://example.com/login"
               class="w-full"
             />
           </div>
@@ -501,12 +543,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 definePageMeta({
   layout: 'admin',
   middleware: 'auth'
+})
+
+useHead({
+  title: 'Applications - Admin'
 })
 
 const router = useRouter()
@@ -529,10 +575,11 @@ const applicationForm = ref({
   agent: '',
   module: '',
   provider: '',
+  name: '',
   client_id: '',
   client_secret: '',
-  redirect_uri: '',
-  api_key: ''
+  api_key: '',
+  login_url: ''
 })
 
 const connectionForm = ref({
@@ -551,8 +598,8 @@ const applications = ref([
     status: 'Active',
     client_id: 'abc123xyz',
     client_secret: 'secret123',
-    redirect_uri: 'https://app.example.com/callback',
     api_key: null,
+    login_url: 'https://zoho.com/login',
     connections: [
       {
         id: '1-1',
@@ -574,8 +621,8 @@ const applications = ref([
     status: 'Inactive',
     client_id: 'qb_client_456',
     client_secret: 'qb_secret_456',
-    redirect_uri: 'https://app.example.com/qb/callback',
     api_key: null,
+    login_url: 'https://quickbooks.com/login',
     connections: []
   },
   {
@@ -586,8 +633,8 @@ const applications = ref([
     status: 'Pending',
     client_id: 'sap_client_789',
     client_secret: 'sap_secret_789',
-    redirect_uri: null,
     api_key: 'sap_key_789',
+    login_url: 'https://sap.com/login',
     connections: []
   }
 ])
@@ -627,6 +674,40 @@ const filteredApplications = computed(() => {
   return applications.value.filter(app => app.module === module)
 })
 
+// Filter modules based on selected agent
+const filteredModules = computed(() => {
+  const agentModuleMap: Record<string, string[]> = {
+    'HRMS': ['Payroll', 'Recruitment', 'Benefits', 'Performance'],
+    'Payroll': ['Payroll', 'Benefits'],
+    'Finance': ['Payroll'],
+    'Legal': ['Performance'],
+    'Operations': ['Recruitment', 'Performance']
+  }
+
+  if (!applicationForm.value.agent) {
+    return modules
+  }
+
+  return agentModuleMap[applicationForm.value.agent] || modules
+})
+
+// Filter providers based on selected agent
+const filteredProviders = computed(() => {
+  const agentProviderMap: Record<string, string[]> = {
+    'HRMS': ['Zoho', 'Keka', 'Workday'],
+    'Payroll': ['Zoho', 'ADP', 'Workday'],
+    'Finance': ['QuickBooks', 'SAP', 'Workday'],
+    'Legal': ['SAP'],
+    'Operations': ['Zoho', 'Keka']
+  }
+
+  if (!applicationForm.value.agent) {
+    return providers
+  }
+
+  return agentProviderMap[applicationForm.value.agent] || providers
+})
+
 // Functions
 const toggleExpandedRow = (appId: string) => {
   const idx = expandedRows.value.indexOf(appId)
@@ -635,6 +716,9 @@ const toggleExpandedRow = (appId: string) => {
   } else {
     expandedRows.value.push(appId)
   }
+  // Close any open menus when toggling expanded row
+  activeConnectionMenu.value = null
+  activeAppStatusMenu.value = null
 }
 
 const getAppIcon = (app: any) => {
@@ -690,10 +774,11 @@ const openAddApplicationModal = () => {
     agent: '',
     module: '',
     provider: '',
+    name: '',
     client_id: '',
     client_secret: '',
-    redirect_uri: '',
-    api_key: ''
+    api_key: '',
+    login_url: ''
   }
   showApplicationModal.value = true
 }
@@ -847,4 +932,26 @@ const toggleConnectionStatusMenu = (connectionId: string) => {
 const toggleAppStatusMenu = (appId: string) => {
   activeAppStatusMenu.value = activeAppStatusMenu.value === appId ? null : appId
 }
+
+// Global click listener to close menus
+const handleClickOutside = (event: MouseEvent) => {
+  const target = event.target as HTMLElement
+
+  // Check if click is on a menu trigger button
+  const isOnMenuTrigger = target.closest('[data-menu-trigger]')
+
+  // If not on trigger, close all menus
+  if (!isOnMenuTrigger) {
+    activeConnectionMenu.value = null
+    activeAppStatusMenu.value = null
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 </script>
