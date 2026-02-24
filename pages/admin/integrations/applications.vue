@@ -1,5 +1,16 @@
 <template>
   <div class="space-y-4 sm:space-y-6">
+    <!-- Error Alert -->
+    <UAlert
+      v-if="error"
+      icon="i-heroicons-exclamation-triangle"
+      color="red"
+      title="Error"
+      :description="error"
+      :closable="true"
+      @close="clearMessages"
+    />
+
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6">
       <div>
@@ -15,13 +26,17 @@
         icon="heroicons:plus"
         color="primary"
         class="w-full sm:w-auto flex-shrink-0"
+        :disabled="loadingIntegrations"
       >
         Add Application
       </UButton>
     </div>
 
     <!-- Tabs for filtering -->
-    <div class="flex gap-2 border-b border-dark-700 overflow-x-auto pb-3 -mx-4 px-4 sm:mx-0 sm:px-0">
+    <div
+      v-if="!loadingIntegrations"
+      class="flex gap-2 border-b border-dark-700 overflow-x-auto pb-3 -mx-4 px-4 sm:mx-0 sm:px-0"
+    >
       <button
         v-for="tab in tabs"
         :key="tab.value"
@@ -30,43 +45,77 @@
           'px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors',
           selectedTab === tab.value
             ? 'text-primary-400 border-b-2 border-primary-400'
-            : 'text-gray-400 hover:text-gray-300 border-b-2 border-transparent'
+            : 'text-gray-400 hover:text-gray-300 border-b-2 border-transparent',
         ]"
       >
         {{ tab.label }}
       </button>
     </div>
 
-    <!-- Applications List -->
-    <div v-if="filteredApplications.length > 0" class="space-y-3" @click="activeConnectionMenu = null; activeAppStatusMenu = null">
+    <!-- Tabs Loading Skeleton -->
+    <div v-else class="border-b border-dark-700 pb-3">
+      <div class="flex gap-3 -mx-4 px-4 sm:mx-0 sm:px-0 overflow-x-auto">
+        <div
+          v-for="i in 5"
+          :key="i"
+          class="h-10 bg-dark-800 rounded animate-pulse flex-shrink-0"
+          :style="{ width: Math.random() * 60 + 50 + 'px' }"
+        />
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div v-if="loadingIntegrations" class="flex items-center justify-center py-12">
+      <UIcon name="i-heroicons:arrow-path-20-solid" class="w-8 h-8 text-primary-400 animate-spin" />
+      <p class="ml-3 text-gray-400">Loading integrations...</p>
+    </div>
+
+    <!-- Grouped Applications List -->
+    <div
+      v-else-if="filteredApplications.length > 0"
+      class="space-y-4"
+      @click="
+        () => {
+          activeAppStatusMenu = null
+        }
+      "
+    >
+      <!-- Integration Parent Card -->
       <div
-        v-for="app in filteredApplications"
-        :key="app.id"
-        class="bg-dark-800 border border-dark-700 rounded-lg hover:border-dark-600 transition-colors"
+        v-for="group in filteredApplications"
+        :key="group.id"
+        class="bg-dark-800 border border-dark-700 rounded-lg"
       >
-        <!-- Application Title Bar -->
-        <div class="px-4 sm:px-6 py-4 flex items-center justify-between bg-dark-800 hover:bg-dark-700/30 transition-colors overflow-visible">
-          <!-- Left: Icon + Name -->
+        <!-- Integration Header -->
+        <div
+          class="px-4 sm:px-6 py-4 flex items-center justify-between bg-dark-800 hover:bg-dark-700/30 transition-colors border-b border-dark-700"
+        >
+          <!-- Left: Icon + Integration Info -->
           <div class="flex items-center gap-4 flex-1 min-w-0">
-            <!-- Application Icon -->
+            <!-- Provider Icon -->
             <div
-              class="w-10 h-10 rounded-lg flex-shrink-0 flex items-center justify-center"
-              :class="getIconBackground(app)"
+              class="w-12 h-12 rounded-lg flex-shrink-0 flex items-center justify-center"
+              :class="getIconBackground({ provider: group.provider })"
             >
-              <AppTooltip :text="app.provider || app.name">
-                <UIcon :name="getAppIcon(app)" class="w-6 h-6 text-white" />
+              <AppTooltip :text="group.provider">
+                <UIcon
+                  :name="getAppIcon({ provider: group.provider })"
+                  class="w-6 h-6 text-white"
+                />
               </AppTooltip>
             </div>
 
-            <!-- Application Name + Details -->
+            <!-- Integration Details -->
             <div class="min-w-0 flex-1">
               <h3 class="text-base sm:text-lg font-semibold text-white break-words">
-                {{ app.name }}
+                {{ group.provider }} Integration
               </h3>
               <div class="flex flex-wrap gap-2 items-center text-xs sm:text-sm text-gray-400 mt-1">
-                <span v-if="app.module">{{ app.module }}</span>
-                <span v-if="app.provider" class="hidden sm:inline">•</span>
-                <span v-if="app.provider" class="hidden sm:inline text-gray-500">{{ app.provider }}</span>
+                <span v-if="group.agent">{{ group.agent }}</span>
+                <span v-if="group.module" class="hidden sm:inline">•</span>
+                <span v-if="group.module" class="hidden sm:inline text-gray-500">{{
+                  group.module
+                }}</span>
               </div>
             </div>
           </div>
@@ -77,24 +126,28 @@
             <span
               :class="[
                 'px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 whitespace-nowrap',
-                app.status === 'Active'
+                getAggregateStatus(group.connections) === 'Active'
                   ? 'bg-green-500/20 text-green-400'
-                  : app.status === 'Inactive'
-                  ? 'bg-gray-500/20 text-gray-400'
-                  : 'bg-yellow-500/20 text-yellow-400'
+                  : getAggregateStatus(group.connections) === 'Inactive'
+                    ? 'bg-gray-500/20 text-gray-400'
+                    : getAggregateStatus(group.connections) === 'Expired'
+                      ? 'bg-yellow-500/20 text-yellow-400'
+                      : 'bg-red-500/20 text-red-400',
               ]"
             >
               <span
                 class="w-2 h-2 rounded-full"
                 :class="
-                  app.status === 'Active'
+                  getAggregateStatus(group.connections) === 'Active'
                     ? 'bg-green-400'
-                    : app.status === 'Inactive'
-                    ? 'bg-gray-400'
-                    : 'bg-yellow-400'
+                    : getAggregateStatus(group.connections) === 'Inactive'
+                      ? 'bg-gray-400'
+                      : getAggregateStatus(group.connections) === 'Expired'
+                        ? 'bg-yellow-400'
+                        : 'bg-red-400'
                 "
               />
-              {{ app.status }}
+              {{ getAggregateStatus(group.connections) }}
             </span>
 
             <!-- Status Change Dropdown -->
@@ -106,63 +159,73 @@
                   icon="heroicons:cog-6-tooth"
                   size="sm"
                   data-menu-trigger
-                  @click.stop="toggleAppStatusMenu(app.id)"
+                  :data-group-id="group.id"
+                  @click.stop="toggleAppStatusMenu(group.id)"
                 />
               </AppTooltip>
-              <div
-                v-if="activeAppStatusMenu === app.id"
-                class="absolute right-0 mt-1 w-48 bg-dark-800 border border-dark-700 rounded-lg shadow-lg py-1 z-50 top-full"
-                data-menu-dropdown
-                @click.stop
-              >
-                <button
-                  @click="() => { updateStatus(app.id, 'Active'); activeAppStatusMenu = null }"
-                  :class="[
-                    'w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-dark-700 transition-colors',
-                    app.status === 'Active' ? 'text-primary-400' : 'text-gray-300'
-                  ]"
+              <Teleport to="body">
+                <div
+                  v-if="activeAppStatusMenu === group.id"
+                  class="fixed w-48 bg-dark-800 border border-dark-700 rounded-lg shadow-lg py-1 z-50"
+                  :style="getDropdownPosition(group.id)"
+                  data-menu-dropdown
+                  @click.stop
                 >
-                  <UIcon name="heroicons:check-circle" class="w-4 h-4" />
-                  Active
-                </button>
-                <button
-                  @click="() => { updateStatus(app.id, 'Inactive'); activeAppStatusMenu = null }"
-                  :class="[
-                    'w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-dark-700 transition-colors',
-                    app.status === 'Inactive' ? 'text-primary-400' : 'text-gray-300'
-                  ]"
-                >
-                  <UIcon name="heroicons:minus-circle" class="w-4 h-4" />
-                  Inactive
-                </button>
-                <button
-                  @click="() => { updateStatus(app.id, 'Pending'); activeAppStatusMenu = null }"
-                  :class="[
-                    'w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-dark-700 transition-colors',
-                    app.status === 'Pending' ? 'text-primary-400' : 'text-gray-300'
-                  ]"
-                >
-                  <UIcon name="heroicons:clock" class="w-4 h-4" />
-                  Pending
-                </button>
-              </div>
+                  <button
+                    @click="
+                      () => {
+                        updateGroupStatus(group, 'Active')
+                      }
+                    "
+                    :class="[
+                      'w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-dark-700 transition-colors',
+                      getAggregateStatus(group.connections) === 'Active'
+                        ? 'text-primary-400'
+                        : 'text-gray-300',
+                    ]"
+                  >
+                    <UIcon name="heroicons:check-circle" class="w-4 h-4" />
+                    Active
+                  </button>
+                  <button
+                    @click="
+                      () => {
+                        updateGroupStatus(group, 'Inactive')
+                      }
+                    "
+                    :class="[
+                      'w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-dark-700 transition-colors',
+                      getAggregateStatus(group.connections) === 'Inactive'
+                        ? 'text-primary-400'
+                        : 'text-gray-300',
+                    ]"
+                  >
+                    <UIcon name="heroicons:minus-circle" class="w-4 h-4" />
+                    Inactive
+                  </button>
+                </div>
+              </Teleport>
             </div>
 
             <!-- Eye Icon Toggle -->
-            <AppTooltip :text="expandedRows.includes(app.id) ? 'Collapse details' : 'Expand details'">
+            <AppTooltip
+              :text="
+                expandedRows.includes(group.id) ? 'Collapse connections' : 'Expand connections'
+              "
+            >
               <UButton
-                @click="toggleExpandedRow(app.id)"
+                @click="toggleExpandedRow(group.id)"
                 variant="ghost"
-                :color="expandedRows.includes(app.id) ? 'primary' : 'gray'"
-                :icon="expandedRows.includes(app.id) ? 'heroicons:eye-slash' : 'heroicons:eye'"
+                :color="expandedRows.includes(group.id) ? 'primary' : 'gray'"
+                :icon="expandedRows.includes(group.id) ? 'heroicons:eye-slash' : 'heroicons:eye'"
                 size="sm"
               />
             </AppTooltip>
 
             <!-- Delete Icon -->
-            <AppTooltip text="Delete application">
+            <AppTooltip text="Delete integration">
               <UButton
-                @click="deleteApplication(app.id)"
+                @click="deleteGroup(group)"
                 variant="ghost"
                 color="red"
                 icon="heroicons:trash-20-solid"
@@ -172,202 +235,202 @@
           </div>
         </div>
 
-        <!-- Expanded Details -->
+        <!-- Connections List -->
         <div
-          v-if="expandedRows.includes(app.id)"
-          class="border-t border-dark-700 bg-dark-900/50 px-4 sm:px-6 py-4 space-y-4 overflow-hidden"
+          v-if="expandedRows.includes(group.id)"
+          class="border-t border-dark-700 bg-dark-900/50 px-4 sm:px-6 py-4"
         >
-          <!-- Credentials Section -->
-          <div v-if="app.client_id || app.client_secret || app.api_key || app.redirect_uri" class="space-y-3">
-            <h4 class="text-sm font-semibold text-gray-300 flex items-center gap-2">
-              <UIcon name="heroicons:key" class="w-4 h-4" />
-              Credentials
-            </h4>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-6">
-              <div v-if="app.client_id" class="space-y-1">
-                <p class="text-xs text-gray-500 font-medium">Client ID</p>
-                <p class="text-sm text-gray-300 font-mono break-all">{{ maskSensitiveData(app.client_id) }}</p>
-              </div>
-              <div v-if="app.client_secret" class="space-y-1">
-                <p class="text-xs text-gray-500 font-medium">Client Secret</p>
-                <p class="text-sm text-gray-300 font-mono">••••••••••••••••</p>
-              </div>
-              <div v-if="app.api_key" class="space-y-1">
-                <p class="text-xs text-gray-500 font-medium">API Key</p>
-                <p class="text-sm text-gray-300 font-mono">••••••••••••••••</p>
-              </div>
-              <div v-if="app.redirect_uri" class="space-y-1">
-                <p class="text-xs text-gray-500 font-medium">Redirect URI</p>
-                <p class="text-sm text-gray-300 font-mono break-all">{{ app.redirect_uri }}</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Connections Section -->
-          <div v-if="app.connections && app.connections.length > 0 || expandedRows.includes(app.id)" class="space-y-3">
-            <div class="flex items-center justify-between">
-              <h4 class="text-sm font-semibold text-gray-300 flex items-center gap-2">
-                <UIcon name="heroicons:link" class="w-4 h-4" />
-                {{ app.connections?.length || 0 }} Connection{{ (app.connections?.length || 0) !== 1 ? 's' : '' }}
+          <!-- Connections Header with Count and Add Button -->
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <UIcon name="heroicons:link" class="w-4 h-4 text-gray-400" />
+              <h4 class="text-sm font-semibold text-gray-300">
+                Connection ({{ group.connections.length }})
               </h4>
-              <UButton
-                variant="ghost"
-                color="gray"
-                icon="heroicons:plus"
-                size="xs"
-                @click="openAddConnectionModal(app.id)"
-              >
-                Add Connection
-              </UButton>
             </div>
+            <UButton
+              @click="openAddConnectionModal(group)"
+              icon="heroicons:plus"
+              color="primary"
+              variant="outline"
+              size="sm"
+            >
+              Add Connection
+            </UButton>
+          </div>
 
-            <div v-if="app.connections && app.connections.length > 0" class="space-y-3 pl-6">
-              <div
-                v-for="connection in app.connections"
-                :key="connection.id"
-                class="border border-dark-700 rounded-lg overflow-hidden bg-dark-800"
-              >
-                <!-- Connection Header Row -->
-                <div class="px-4 py-3 flex items-center justify-between bg-dark-800 hover:bg-dark-700/30 transition-colors" @click="activeConnectionMenu = null">
-                  <!-- Connection Name -->
-                  <h5 class="text-sm font-medium text-white flex-1">
-                    {{ connection.name }}
-                  </h5>
-
-                  <!-- Right: Status + Actions -->
-                  <div class="flex items-center gap-2 flex-shrink-0 ml-4">
-                    <!-- Status Badge -->
-                    <span
-                      :class="[
-                        'px-2 py-1 rounded text-xs font-medium whitespace-nowrap',
-                        connection.status === 'Active'
-                          ? 'bg-green-500/20 text-green-400'
-                          : 'bg-yellow-500/20 text-yellow-400'
-                      ]"
-                    >
-                      {{ connection.status }}
-                    </span>
-
-                    <!-- Status Dropdown -->
-                    <div class="relative" @click.stop>
-                      <AppTooltip text="Change connection status">
-                        <UButton
-                          color="gray"
-                          variant="ghost"
-                          icon="heroicons:cog-6-tooth"
-                          size="sm"
-                          data-menu-trigger
-                          @click.stop="toggleConnectionStatusMenu(connection.id)"
-                        />
-                      </AppTooltip>
-                      <div
-                        v-if="activeConnectionMenu === connection.id"
-                        class="absolute right-0 mt-1 w-48 bg-dark-800 border border-dark-700 rounded-lg shadow-lg py-1 z-50 top-full"
-                        data-menu-dropdown
-                        @click.stop
-                      >
-                        <button
-                          @click="() => { updateConnectionStatus(app.id, connection.id, 'Active'); activeConnectionMenu = null }"
-                          :class="[
-                            'w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-dark-700 transition-colors',
-                            connection.status === 'Active' ? 'text-primary-400' : 'text-gray-300'
-                          ]"
-                        >
-                          <UIcon name="heroicons:check-circle" class="w-4 h-4" />
-                          Active
-                        </button>
-                        <button
-                          @click="() => { updateConnectionStatus(app.id, connection.id, 'Inactive'); activeConnectionMenu = null }"
-                          :class="[
-                            'w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-dark-700 transition-colors',
-                            connection.status === 'Inactive' ? 'text-primary-400' : 'text-gray-300'
-                          ]"
-                        >
-                          <UIcon name="heroicons:minus-circle" class="w-4 h-4" />
-                          Inactive
-                        </button>
-                      </div>
-                    </div>
-
-                    <!-- Edit Icon -->
-                    <AppTooltip text="Edit connection">
-                      <UButton
-                        variant="ghost"
-                        color="gray"
-                        icon="heroicons:pencil"
-                        size="sm"
-                        @click="editConnection(app.id, connection)"
-                      />
-                    </AppTooltip>
-
-                    <!-- Delete Icon -->
-                    <AppTooltip text="Delete connection">
-                      <UButton
-                        variant="ghost"
-                        color="red"
-                        icon="heroicons:trash-20-solid"
-                        size="sm"
-                        @click="deleteConnection(app.id, connection.id)"
-                      />
-                    </AppTooltip>
-                  </div>
+          <!-- Connection Cards -->
+          <div class="space-y-3">
+            <div
+              v-for="connection in group.connections"
+              :key="connection.id"
+              class="bg-dark-800 border border-dark-700 rounded-lg p-4 space-y-3"
+            >
+              <!-- Connection Header -->
+              <div class="flex items-center justify-between">
+                <div class="flex-1">
+                  <h4 class="text-sm font-semibold text-white">{{ connection.connection_name }}</h4>
+                  <p class="text-xs text-gray-400 mt-1">
+                    Created {{ formatDate(connection.created_at) }}
+                  </p>
                 </div>
 
-                <!-- Connection Details -->
-                <div v-if="connection.details" class="border-t border-dark-700 px-4 py-3 bg-dark-900/50 space-y-2">
-                  <div class="text-xs text-gray-400 space-y-2">
-                    <div v-if="connection.details.client_id" class="flex justify-between">
-                      <span class="text-gray-500">Client ID:</span>
-                      <span class="font-mono">{{ maskSensitiveData(connection.details.client_id) }}</span>
-                    </div>
-                    <div v-if="connection.details.redirect_url" class="flex justify-between">
-                      <span class="text-gray-500">Redirect URL:</span>
-                      <span class="font-mono break-all text-right ml-2">{{ connection.details.redirect_url }}</span>
-                    </div>
-                    <div v-if="connection.created_at" class="flex justify-between text-gray-500">
-                      <span>Added:</span>
-                      <span>{{ formatDate(connection.created_at) }}</span>
+                <!-- Status Badge + Actions -->
+                <div class="flex items-center gap-2 flex-shrink-0 ml-4">
+                  <!-- Status Badge -->
+                  <span
+                    :class="[
+                      'px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 whitespace-nowrap',
+                      connection.status === 'Active'
+                        ? 'bg-green-500/20 text-green-400'
+                        : connection.status === 'Inactive'
+                          ? 'bg-gray-500/20 text-gray-400'
+                          : connection.status === 'Expired'
+                            ? 'bg-yellow-500/20 text-yellow-400'
+                            : 'bg-red-500/20 text-red-400',
+                    ]"
+                  >
+                    <span
+                      class="w-2 h-2 rounded-full"
+                      :class="
+                        connection.status === 'Active'
+                          ? 'bg-green-400'
+                          : connection.status === 'Inactive'
+                            ? 'bg-gray-400'
+                            : connection.status === 'Expired'
+                              ? 'bg-yellow-400'
+                              : 'bg-red-400'
+                      "
+                    />
+                    {{ connection.status }}
+                  </span>
+
+                  <!-- Status Change Dropdown -->
+                  <div class="relative" @click.stop>
+                    <AppTooltip text="Change status">
+                      <UButton
+                        color="gray"
+                        variant="ghost"
+                        icon="heroicons:cog-6-tooth"
+                        size="sm"
+                        data-menu-trigger
+                        @click.stop="toggleAppStatusMenu(connection.id)"
+                      />
+                    </AppTooltip>
+                    <div
+                      v-if="activeAppStatusMenu === connection.id"
+                      class="absolute right-0 mt-1 w-48 bg-dark-800 border border-dark-700 rounded-lg shadow-lg py-1 z-50 top-full"
+                      data-menu-dropdown
+                      @click.stop
+                    >
+                      <button
+                        @click="
+                          () => {
+                            updateStatus(connection.id, 'Active')
+                            activeAppStatusMenu = null
+                          }
+                        "
+                        :class="[
+                          'w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-dark-700 transition-colors',
+                          connection.status === 'Active' ? 'text-primary-400' : 'text-gray-300',
+                        ]"
+                      >
+                        <UIcon name="heroicons:check-circle" class="w-4 h-4" />
+                        Active
+                      </button>
+                      <button
+                        @click="
+                          () => {
+                            updateStatus(connection.id, 'Inactive')
+                            activeAppStatusMenu = null
+                          }
+                        "
+                        :class="[
+                          'w-full px-4 py-2 text-sm text-left flex items-center gap-2 hover:bg-dark-700 transition-colors',
+                          connection.status === 'Inactive' ? 'text-primary-400' : 'text-gray-300',
+                        ]"
+                      >
+                        <UIcon name="heroicons:minus-circle" class="w-4 h-4" />
+                        Inactive
+                      </button>
                     </div>
                   </div>
+
+                  <!-- Edit Icon -->
+                  <AppTooltip text="Edit connection">
+                    <UButton
+                      @click="editConnection(connection)"
+                      variant="ghost"
+                      color="gray"
+                      icon="heroicons:pencil-square"
+                      size="sm"
+                    />
+                  </AppTooltip>
+
+                  <!-- Delete Icon -->
+                  <AppTooltip text="Delete connection">
+                    <UButton
+                      @click="deleteApplication(connection.id)"
+                      variant="ghost"
+                      color="red"
+                      icon="heroicons:trash-20-solid"
+                      size="sm"
+                    />
+                  </AppTooltip>
+                </div>
+              </div>
+
+              <!-- Connection Details -->
+              <div class="text-xs text-gray-400 space-y-2 bg-dark-700/50 rounded-lg p-3">
+                <div class="flex justify-between items-start">
+                  <span class="text-gray-500 font-medium">Client ID:</span>
+                  <span class="font-mono text-gray-300 break-all text-right ml-4">{{
+                    maskSensitiveData(connection.client_id)
+                  }}</span>
+                </div>
+                <div class="flex justify-between items-start">
+                  <span class="text-gray-500 font-medium">Client Secret:</span>
+                  <span class="font-mono text-gray-300 break-all text-right ml-4">{{
+                    maskSensitiveData(connection.client_secret)
+                  }}</span>
+                </div>
+                <div v-if="connection.api_key" class="flex justify-between items-start">
+                  <span class="text-gray-500 font-medium">API Key:</span>
+                  <span class="font-mono text-gray-300 break-all text-right ml-4">{{
+                    maskSensitiveData(connection.api_key)
+                  }}</span>
+                </div>
+                <div v-if="connection.login_url" class="flex justify-between items-start">
+                  <span class="text-gray-500 font-medium">Login URL:</span>
+                  <span class="font-mono text-gray-300 break-all text-right ml-4">{{
+                    connection.login_url
+                  }}</span>
                 </div>
               </div>
             </div>
-
-            <!-- No connections state -->
-            <div v-else class="text-sm text-gray-400 pl-6 py-2">
-              No connections yet. 
-              <UButton
-                variant="ghost"
-                color="primary"
-                size="xs"
-                @click="openAddConnectionModal(app.id)"
-                class="ml-1"
-              >
-                Add one now
-              </UButton>
-            </div>
           </div>
-
         </div>
       </div>
     </div>
 
     <!-- Empty State -->
-    <div v-else class="flex flex-col items-center justify-center py-12 px-4 bg-dark-800 rounded-lg border border-dark-700">
+    <div
+      v-else
+      class="flex flex-col items-center justify-center py-12 px-4 bg-dark-800 rounded-lg border border-dark-700"
+    >
       <UIcon name="heroicons:briefcase" class="w-12 h-12 text-gray-500 mb-4" />
       <h3 class="text-lg font-semibold text-gray-300 mb-2">No applications yet</h3>
       <p class="text-sm text-gray-400 mb-4 text-center">
         Create your first application integration to get started
       </p>
-      <UButton @click="openAddApplicationModal" icon="heroicons:plus">
-        Add Application
-      </UButton>
+      <UButton @click="openAddApplicationModal" icon="heroicons:plus"> Add Application </UButton>
     </div>
 
     <!-- Add/Edit Application Modal -->
-    <UModal v-model="showApplicationModal" size="lg">
-      <template #header>
-        <div class="flex items-center justify-between">
+    <UModal v-model="showApplicationModal" size="lg" prevent-close>
+      <div class="p-6 space-y-4">
+        <!-- Close Button -->
+        <div class="flex items-center justify-between mb-4">
           <h2 class="text-lg font-semibold text-white">
             {{ editingAppId ? 'Edit Application' : 'Add New Application' }}
           </h2>
@@ -377,17 +440,18 @@
             icon="heroicons:x-mark"
             size="sm"
             @click="closeApplicationModal"
+            aria-label="Close modal"
           />
         </div>
-      </template>
-      <div class="p-6 space-y-4">
         <!-- Select Agent -->
         <div>
           <label class="block text-sm font-medium text-white mb-2">Select Agent *</label>
           <USelect
-            v-model="applicationForm.agent"
-            :options="agents"
+            v-model="applicationForm.agent_id"
+            :options="agents.map((a) => ({ value: a.id, label: a.name }))"
             placeholder="Select an agent"
+            value-attribute="value"
+            option-attribute="label"
             class="w-full"
           />
         </div>
@@ -398,16 +462,22 @@
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <button
               v-for="module in filteredModules"
-              :key="module"
-              @click="applicationForm.module = module"
+              :key="module.id"
+              @click="
+                () => {
+                  applicationForm.module_id = module.id
+                  applicationForm.module = module.name
+                }
+              "
               :class="[
-                'p-3 rounded-lg border transition-all text-sm font-medium',
-                applicationForm.module === module
+                'p-3 rounded-lg border transition-all text-sm font-medium flex flex-col items-center justify-center gap-2',
+                applicationForm.module_id === module.id
                   ? 'border-primary-500 bg-primary-500/20 text-primary-400'
-                  : 'border-dark-700 bg-dark-900 text-gray-400 hover:border-dark-600'
+                  : 'border-dark-700 bg-dark-900 text-gray-400 hover:border-dark-600',
               ]"
             >
-              {{ module }}
+              <UIcon :name="getModuleIcon(module.name)" class="w-5 h-5" />
+              {{ module.name }}
             </button>
           </div>
         </div>
@@ -418,28 +488,34 @@
           <div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
             <button
               v-for="provider in filteredProviders"
-              :key="provider"
-              @click="applicationForm.provider = provider"
+              :key="provider.id"
+              @click="
+                () => {
+                  applicationForm.provider_id = provider.id
+                  applicationForm.provider = provider.name
+                }
+              "
               :class="[
-                'p-3 rounded-lg border transition-all flex flex-col items-center justify-center',
-                applicationForm.provider === provider
-                  ? 'border-primary-500 bg-primary-500/20'
-                  : 'border-dark-700 bg-dark-900 hover:border-dark-600'
+                'p-3 rounded-lg border transition-all flex flex-col items-center justify-center gap-2',
+                applicationForm.provider_id === provider.id
+                  ? 'border-primary-500 bg-primary-500/20 text-primary-400'
+                  : 'border-dark-700 bg-dark-900 hover:border-dark-600 text-gray-400',
               ]"
             >
-              <UIcon :name="getProviderIcon(provider)" class="w-6 h-6 mb-1" />
-              <span class="text-xs text-gray-300 text-center">{{ provider }}</span>
+              <UIcon :name="getProviderIcon(provider.name)" class="w-6 h-6 text-white" />
+              <span class="text-xs text-center">{{ provider.name }}</span>
             </button>
           </div>
         </div>
 
-        <!-- Application Name -->
+        <!-- Connection Name -->
         <div>
-          <label class="block text-sm font-medium text-white mb-2">Application Name *</label>
-          <UInput
-            v-model="applicationForm.name"
+          <label class="block text-sm font-medium text-white mb-2">Connection Name *</label>
+          <input
+            v-model="applicationForm.connection_name"
             placeholder="e.g., Main Payroll"
-            class="w-full"
+            class="input-field w-full"
+            autocomplete="new-password"
           />
         </div>
 
@@ -449,92 +525,93 @@
 
           <div>
             <label class="block text-xs text-gray-400 mb-1">Client ID</label>
-            <UInput
+            <input
               v-model="applicationForm.client_id"
               placeholder="Enter client ID"
-              class="w-full"
+              class="input-field w-full"
+              autocomplete="new-password"
             />
           </div>
 
           <div>
             <label class="block text-xs text-gray-400 mb-1">Client Secret</label>
-            <UInput
-              v-model="applicationForm.client_secret"
-              type="password"
-              placeholder="Enter client secret"
-              class="w-full"
-            />
+            <div class="relative">
+              <input
+                v-model="applicationForm.client_secret"
+                :type="showApplicationClientSecret ? 'text' : 'password'"
+                placeholder="Enter client secret"
+                class="input-field w-full pr-10"
+                autocomplete="new-password"
+              />
+              <button
+                type="button"
+                class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-300 transition-colors"
+                @click="showApplicationClientSecret = !showApplicationClientSecret"
+              >
+                <UIcon
+                  :name="showApplicationClientSecret ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
+                  class="h-5 w-5"
+                />
+              </button>
+            </div>
           </div>
 
           <div>
             <label class="block text-xs text-gray-400 mb-1">API Key</label>
-            <UInput
-              v-model="applicationForm.api_key"
-              type="password"
-              placeholder="Enter API key"
-              class="w-full"
+            <div class="relative">
+              <input
+                v-model="applicationForm.api_key"
+                :type="showApplicationApiKey ? 'text' : 'password'"
+                placeholder="Enter API key"
+                class="input-field w-full pr-10"
+                autocomplete="new-password"
+              />
+              <button
+                type="button"
+                class="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-300 transition-colors"
+                @click="showApplicationApiKey = !showApplicationApiKey"
+              >
+                <UIcon
+                  :name="showApplicationApiKey ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'"
+                  class="h-5 w-5"
+                />
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs text-gray-400 mb-1">Access Token</label>
+            <input
+              v-model="applicationForm.access_token"
+              placeholder="Enter access token"
+              class="input-field w-full"
+              autocomplete="new-password"
             />
           </div>
 
           <div>
             <label class="block text-xs text-gray-400 mb-1">Login URL</label>
-            <UInput
+            <input
               v-model="applicationForm.login_url"
               placeholder="https://example.com/login"
-              class="w-full"
+              class="input-field w-full"
+              autocomplete="off"
             />
           </div>
         </div>
 
         <!-- Modal Actions -->
         <div class="flex gap-2 justify-end pt-4 border-t border-dark-700">
-          <UButton variant="outline" color="gray" @click="closeApplicationModal">
+          <UButton
+            variant="outline"
+            color="gray"
+            @click="closeApplicationModal"
+            :disabled="isSavingApplication"
+          >
             Cancel
           </UButton>
           <UButton @click="saveApplication" :loading="isSavingApplication">
-            {{ editingAppId ? 'Update' : 'Create' }} Application
-          </UButton>
-        </div>
-      </div>
-    </UModal>
-
-    <!-- Add/Edit Connection Modal -->
-    <UModal v-model="showConnectionModal" :title="editingConnectionId ? 'Edit Connection' : 'Add Connection'" size="md">
-      <div class="p-6 space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-white mb-2">Connection Name *</label>
-          <UInput
-            v-model="connectionForm.name"
-            placeholder="e.g., Main Payroll"
-            class="w-full"
-          />
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-white mb-2">Client ID</label>
-          <UInput
-            v-model="connectionForm.client_id"
-            placeholder="Enter client ID"
-            class="w-full"
-          />
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-white mb-2">Redirect URL</label>
-          <UInput
-            v-model="connectionForm.redirect_url"
-            placeholder="https://example.com/callback"
-            class="w-full"
-          />
-        </div>
-
-        <!-- Modal Actions -->
-        <div class="flex gap-2 justify-end pt-4 border-t border-dark-700">
-          <UButton variant="outline" color="gray" @click="closeConnectionModal">
-            Cancel
-          </UButton>
-          <UButton @click="saveConnection" :loading="isSavingConnection">
-            {{ editingConnectionId ? 'Update' : 'Add' }} Connection
+            {{ editingAppId ? 'Update' : 'Create' }} Integration
           </UButton>
         </div>
       </div>
@@ -543,169 +620,143 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { useOrganizationIntegrations } from '~/composables/useOrganizationIntegrations'
+import { useNotification } from '~/composables/useNotification'
 
 definePageMeta({
   layout: 'admin',
-  middleware: 'auth'
+  middleware: 'auth',
 })
 
 useHead({
-  title: 'Applications - Admin'
+  title: 'Applications - Admin',
 })
 
-const router = useRouter()
+const { showSuccess, showError } = useNotification()
+
+// Use the organization integrations composable
+const {
+  integrations,
+  providers,
+  modules,
+  agents,
+  loadingIntegrations,
+  error,
+  successMessage,
+  fetchIntegrations,
+  fetchMasterData,
+  createIntegration,
+  updateIntegration,
+  updateIntegrationStatus,
+  deleteIntegration,
+  clearMessages,
+  getModulesForAgent,
+  getProvidersForAgent,
+  getProvidersForAgentAndModule,
+} = useOrganizationIntegrations()
 
 // Form state
 const showApplicationModal = ref(false)
-const showConnectionModal = ref(false)
 const isSavingApplication = ref(false)
-const isSavingConnection = ref(false)
 const selectedTab = ref('all')
 const editingAppId = ref<string | null>(null)
-const editingConnectionId = ref<string | null>(null)
-const selectedAppIdForConnection = ref<string | null>(null)
 const expandedRows = ref<string[]>([])
-const activeConnectionMenu = ref<string | null>(null)
 const activeAppStatusMenu = ref<string | null>(null)
+const showApplicationClientSecret = ref(false)
+const showApplicationApiKey = ref(false)
 
 // Form data
 const applicationForm = ref({
   agent: '',
+  agent_id: '',
   module: '',
+  module_id: '',
   provider: '',
+  provider_id: '',
   name: '',
+  connection_name: '',
   client_id: '',
   client_secret: '',
   api_key: '',
-  login_url: ''
+  access_token: '',
+  login_url: '',
 })
 
-const connectionForm = ref({
-  name: '',
-  client_id: '',
-  redirect_url: ''
+// Transform grouped integrations for UI display
+const applicationsList = computed(() => {
+  const store = useOrganizationIntegrationsStore()
+  const grouped = store.getGroupedIntegrations
+
+  return grouped.map((group) => ({
+    id: `${group.provider_id}-${group.agent_id}-${group.module_id}`,
+    provider: group.provider_name,
+    agent: group.agent_name,
+    module: group.module_name,
+    provider_id: group.provider_id,
+    agent_id: group.agent_id,
+    module_id: group.module_id,
+    connections: group.connections.map((conn) => ({
+      ...conn,
+      status:
+        conn.status === 'active'
+          ? 'Active'
+          : conn.status === 'inactive'
+            ? 'Inactive'
+            : conn.status === 'expired'
+              ? 'Expired'
+              : 'Failed',
+    })),
+  }))
 })
 
-// Mock data - replace with API calls
-const applications = ref([
-  {
-    id: '1',
-    name: 'Zoho HRMS Integration',
-    module: 'Payroll',
-    provider: 'Zoho',
-    status: 'Active',
-    client_id: 'abc123xyz',
-    client_secret: 'secret123',
-    api_key: null,
-    login_url: 'https://zoho.com/login',
-    connections: [
-      {
-        id: '1-1',
-        name: 'Main Payroll',
-        status: 'Active',
-        created_at: '2024-01-15',
-        details: {
-          client_id: 'main_payroll_123',
-          redirect_url: 'https://app.example.com/callback'
-        }
-      }
-    ]
-  },
-  {
-    id: '2',
-    name: 'QuickBooks Integration',
-    module: 'Finance',
-    provider: 'QuickBooks',
-    status: 'Inactive',
-    client_id: 'qb_client_456',
-    client_secret: 'qb_secret_456',
-    api_key: null,
-    login_url: 'https://quickbooks.com/login',
-    connections: []
-  },
-  {
-    id: '3',
-    name: 'SAP Integration',
-    module: 'Finance',
-    provider: 'SAP',
-    status: 'Pending',
-    client_id: 'sap_client_789',
-    client_secret: 'sap_secret_789',
-    api_key: 'sap_key_789',
-    login_url: 'https://sap.com/login',
-    connections: []
-  }
-])
+// Dynamic tabs based on available agents (already sorted with HRMS first in store)
+const tabs = computed(() => {
+  const baseTabs = [{ label: 'All', value: 'all' }]
 
-const tabs = [
-  { label: 'All', value: 'all' },
-  { label: 'HRMS', value: 'hrms' },
-  { label: 'Finance', value: 'finance' },
-  { label: 'Legal', value: 'legal' }
-]
-
-const agents = [
-  'HRMS',
-  'Payroll',
-  'Finance',
-  'Legal',
-  'Operations'
-]
-
-const modules = ['Payroll', 'Recruitment', 'Benefits', 'Performance']
-
-const providers = ['Zoho', 'Keka', 'ADP', 'QuickBooks', 'Workday', 'SAP']
+  // Agents are already sorted in the store with HRMS first
+  agents.value.forEach((agent) => {
+    baseTabs.push({ label: agent.name, value: agent.id })
+  })
+  return baseTabs
+})
 
 // Computed
 const filteredApplications = computed(() => {
   if (selectedTab.value === 'all') {
-    return applications.value
+    return applicationsList.value
   }
 
-  const moduleMap: Record<string, string> = {
-    hrms: 'Payroll',
-    finance: 'Finance',
-    legal: 'Legal'
-  }
-
-  const module = moduleMap[selectedTab.value]
-  return applications.value.filter(app => app.module === module)
+  // Filter by agent_id based on selected tab
+  return applicationsList.value.filter((group) => group.agent_id === selectedTab.value)
 })
 
 // Filter modules based on selected agent
 const filteredModules = computed(() => {
-  const agentModuleMap: Record<string, string[]> = {
-    'HRMS': ['Payroll', 'Recruitment', 'Benefits', 'Performance'],
-    'Payroll': ['Payroll', 'Benefits'],
-    'Finance': ['Payroll'],
-    'Legal': ['Performance'],
-    'Operations': ['Recruitment', 'Performance']
+  if (!applicationForm.value.agent_id) {
+    return modules.value
   }
 
-  if (!applicationForm.value.agent) {
-    return modules
-  }
-
-  return agentModuleMap[applicationForm.value.agent] || modules
+  // Use store getter for client-side filtering
+  return getModulesForAgent(applicationForm.value.agent_id)
 })
 
-// Filter providers based on selected agent
+// Filter providers based on selected agent and optionally module
 const filteredProviders = computed(() => {
-  const agentProviderMap: Record<string, string[]> = {
-    'HRMS': ['Zoho', 'Keka', 'Workday'],
-    'Payroll': ['Zoho', 'ADP', 'Workday'],
-    'Finance': ['QuickBooks', 'SAP', 'Workday'],
-    'Legal': ['SAP'],
-    'Operations': ['Zoho', 'Keka']
+  if (!applicationForm.value.agent_id) {
+    return providers.value
   }
 
-  if (!applicationForm.value.agent) {
-    return providers
+  // If module is selected, filter providers for both agent and module
+  if (applicationForm.value.module_id) {
+    return getProvidersForAgentAndModule(
+      applicationForm.value.agent_id,
+      applicationForm.value.module_id,
+    )
   }
 
-  return agentProviderMap[applicationForm.value.agent] || providers
+  // Otherwise, just filter for agent
+  return getProvidersForAgent(applicationForm.value.agent_id)
 })
 
 // Functions
@@ -717,50 +768,72 @@ const toggleExpandedRow = (appId: string) => {
     expandedRows.value.push(appId)
   }
   // Close any open menus when toggling expanded row
-  activeConnectionMenu.value = null
   activeAppStatusMenu.value = null
+}
+
+const getAggregateStatus = (connections: any[]) => {
+  if (!connections || connections.length === 0) return 'Unknown'
+
+  const statuses = connections.map((c) => c.status)
+
+  // If all same status, return that status
+  if (statuses.every((s) => s === statuses[0])) {
+    return statuses[0]
+  }
+
+  // If mixed, return the first one
+  return statuses[0]
 }
 
 const getAppIcon = (app: any) => {
   const icons: Record<string, string> = {
-    'Zoho': 'i-mdi:zoho',
-    'Keka': 'heroicons:briefcase',
-    'ADP': 'heroicons:briefcase',
-    'QuickBooks': 'heroicons:calculator',
-    'Workday': 'heroicons:briefcase',
-    'SAP': 'heroicons:briefcase'
+    Zoho: 'heroicons:cog-6-tooth',
+    Keka: 'heroicons:briefcase',
+    ADP: 'heroicons:briefcase',
+    QuickBooks: 'heroicons:calculator',
+    Workday: 'heroicons:briefcase',
+    SAP: 'heroicons:briefcase',
   }
   return icons[app.provider] || 'heroicons:briefcase'
 }
 
 const getIconBackground = (app: any) => {
   const colors: Record<string, string> = {
-    'Zoho': 'bg-blue-500',
-    'Keka': 'bg-purple-500',
-    'ADP': 'bg-red-500',
-    'QuickBooks': 'bg-green-500',
-    'Workday': 'bg-orange-500',
-    'SAP': 'bg-indigo-500'
+    Zoho: 'bg-blue-500',
+    Keka: 'bg-purple-500',
+    ADP: 'bg-red-500',
+    QuickBooks: 'bg-green-500',
+    Workday: 'bg-orange-500',
+    SAP: 'bg-indigo-500',
   }
   return colors[app.provider] || 'bg-gray-500'
 }
 
 const getProviderIcon = (provider: string) => {
   const icons: Record<string, string> = {
-    'Zoho': 'i-mdi:zoho',
-    'Keka': 'heroicons:briefcase',
-    'ADP': 'heroicons:briefcase',
-    'QuickBooks': 'heroicons:calculator',
-    'Workday': 'heroicons:briefcase',
-    'SAP': 'heroicons:briefcase'
+    Zoho: 'heroicons:cog-6-tooth',
+    Keka: 'heroicons:briefcase',
+    ADP: 'heroicons:briefcase',
+    QuickBooks: 'heroicons:calculator',
+    Workday: 'heroicons:briefcase',
+    SAP: 'heroicons:briefcase',
   }
   return icons[provider] || 'heroicons:briefcase'
 }
 
+const getModuleIcon = (module: string) => {
+  const icons: Record<string, string> = {
+    Payroll: 'heroicons:calculator',
+    Recruitment: 'heroicons:briefcase',
+    Benefits: 'heroicons:cog-6-tooth',
+    Performance: 'heroicons:check-circle',
+  }
+  return icons[module] || 'heroicons:briefcase'
+}
+
 const maskSensitiveData = (data: string) => {
   if (!data) return '••••••••'
-  if (data.length <= 4) return '••••••••'
-  return data.substring(0, 3) + '•••••••' + data.substring(data.length - 3)
+  return '••••••••'
 }
 
 const formatDate = (dateStr: string) => {
@@ -772,13 +845,18 @@ const openAddApplicationModal = () => {
   editingAppId.value = null
   applicationForm.value = {
     agent: '',
+    agent_id: '',
     module: '',
+    module_id: '',
     provider: '',
+    provider_id: '',
     name: '',
+    connection_name: '',
     client_id: '',
     client_secret: '',
     api_key: '',
-    login_url: ''
+    access_token: '',
+    login_url: '',
   }
   showApplicationModal.value = true
 }
@@ -786,151 +864,224 @@ const openAddApplicationModal = () => {
 const closeApplicationModal = () => {
   showApplicationModal.value = false
   editingAppId.value = null
+  showApplicationClientSecret.value = false
+  showApplicationApiKey.value = false
 }
 
 const saveApplication = async () => {
   isSavingApplication.value = true
-  try {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500))
+  clearMessages()
 
-    if (editingAppId.value) {
-      // Update existing
-      const idx = applications.value.findIndex(a => a.id === editingAppId.value)
-      if (idx >= 0) {
-        applications.value[idx] = {
-          ...applications.value[idx],
-          ...applicationForm.value,
-          status: 'Pending'
-        }
-      }
-    } else {
-      // Create new
-      applications.value.push({
-        id: String(Date.now()),
-        ...applicationForm.value,
-        status: 'Pending',
-        connections: []
-      } as any)
+  try {
+    // Validate required fields
+    if (
+      !applicationForm.value.agent_id ||
+      !applicationForm.value.module_id ||
+      !applicationForm.value.provider_id
+    ) {
+      showError('Please select Agent, Module, and Provider')
+      return
     }
 
-    closeApplicationModal()
+    if (!applicationForm.value.connection_name || !applicationForm.value.client_id) {
+      showError('Please fill in all required fields')
+      return
+    }
+
+    const payload = {
+      provider_id: applicationForm.value.provider_id,
+      agent_id: applicationForm.value.agent_id,
+      module_id: applicationForm.value.module_id,
+      connection_name: applicationForm.value.connection_name,
+      client_id: applicationForm.value.client_id,
+      client_secret: applicationForm.value.client_secret,
+      api_key: applicationForm.value.api_key,
+      access_token: applicationForm.value.access_token,
+      login_url: applicationForm.value.login_url,
+      status: 'active' as const,
+    }
+
+    let result
+    if (editingAppId.value) {
+      // Update existing
+      result = await updateIntegration(editingAppId.value, payload)
+    } else {
+      // Create new
+      result = await createIntegration(payload)
+    }
+
+    if (result.success) {
+      showSuccess(successMessage.value || 'Integration saved successfully')
+      closeApplicationModal()
+    } else {
+      showError(result.message || 'Failed to save integration')
+    }
   } finally {
     isSavingApplication.value = false
   }
 }
 
 const editApplication = (app: any) => {
-  editingAppId.value = app.id
-  applicationForm.value = { ...app }
+  editingAppId.value = app.integrationData?.id || app.id
+  applicationForm.value = {
+    agent: app.integrationData?.agent_name || '',
+    agent_id: app.integrationData?.agent_id || '',
+    module: app.integrationData?.module_name || '',
+    module_id: app.integrationData?.module_id || '',
+    provider: app.integrationData?.provider_name || '',
+    provider_id: app.integrationData?.provider_id || '',
+    name: app.name || '',
+    connection_name: app.integrationData?.connection_name || '',
+    client_id: app.integrationData?.client_id || '',
+    client_secret: '',
+    api_key: app.integrationData?.api_key || '',
+    access_token: app.integrationData?.access_token || '',
+    login_url: app.integrationData?.login_url || '',
+  }
+  showApplicationModal.value = true
+}
+
+const openAddConnectionModal = (group: any) => {
+  editingAppId.value = null
+  // Pre-fill with the integration's provider/agent/module
+  applicationForm.value = {
+    agent: group.agent_name || group.agent,
+    agent_id: group.agent_id,
+    module: group.module_name || group.module,
+    module_id: group.module_id,
+    provider: group.provider_name || group.provider,
+    provider_id: group.provider_id,
+    name: '',
+    connection_name: '',
+    client_id: '',
+    client_secret: '',
+    api_key: '',
+    access_token: '',
+    login_url: '',
+  }
+  showApplicationModal.value = true
+}
+
+const editConnection = (connection: any) => {
+  editingAppId.value = connection.id
+  applicationForm.value = {
+    agent: connection.agent_name || '',
+    agent_id: connection.agent_id || '',
+    module: connection.module_name || '',
+    module_id: connection.module_id || '',
+    provider: connection.provider_name || '',
+    provider_id: connection.provider_id || '',
+    name: connection.connection_name || '',
+    connection_name: connection.connection_name || '',
+    client_id: connection.client_id || '',
+    client_secret: connection.client_secret || '',
+    api_key: connection.api_key || '',
+    access_token: connection.access_token || '',
+    login_url: connection.login_url || '',
+  }
   showApplicationModal.value = true
 }
 
 const deleteApplication = async (id: string) => {
-  if (confirm('Are you sure you want to delete this application?')) {
-    applications.value = applications.value.filter(a => a.id !== id)
+  if (!confirm('Are you sure you want to delete this connection?')) {
+    return
   }
-}
 
-const openAddConnectionModal = (appId: string) => {
-  editingConnectionId.value = null
-  selectedAppIdForConnection.value = appId
-  connectionForm.value = {
-    name: '',
-    client_id: '',
-    redirect_url: ''
-  }
-  showConnectionModal.value = true
-}
-
-const closeConnectionModal = () => {
-  showConnectionModal.value = false
-  selectedAppIdForConnection.value = null
-  editingConnectionId.value = null
-}
-
-const saveConnection = async () => {
-  isSavingConnection.value = true
   try {
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    const app = applications.value.find(a => a.id === selectedAppIdForConnection.value)
-    if (app) {
-      if (!app.connections) app.connections = []
-
-      if (editingConnectionId.value) {
-        // Update existing connection
-        const connIdx = app.connections.findIndex(c => c.id === editingConnectionId.value)
-        if (connIdx >= 0) {
-          app.connections[connIdx] = {
-            ...app.connections[connIdx],
-            ...connectionForm.value
-          }
-        }
-      } else {
-        // Create new connection
-        app.connections.push({
-          id: `${app.id}-${Date.now()}`,
-          ...connectionForm.value,
-          status: 'Active',
-          created_at: new Date().toISOString().split('T')[0],
-          details: {
-            client_id: connectionForm.value.client_id,
-            redirect_url: connectionForm.value.redirect_url
-          }
-        })
-      }
+    const result = await deleteIntegration(id)
+    if (result.success) {
+      showSuccess('Connection deleted successfully')
+    } else {
+      showError(result.message || 'Failed to delete connection')
     }
-
-    closeConnectionModal()
-  } finally {
-    isSavingConnection.value = false
+  } catch (err) {
+    showError('Failed to delete integration')
   }
 }
 
-const editConnection = (appId: string, connection: any) => {
-  editingConnectionId.value = connection.id
-  selectedAppIdForConnection.value = appId
-  connectionForm.value = {
-    name: connection.name,
-    client_id: connection.details?.client_id || '',
-    redirect_url: connection.details?.redirect_url || ''
+const deleteGroup = async (group: any) => {
+  if (!confirm('Are you sure you want to delete this integration and all its connections?')) {
+    return
   }
-  showConnectionModal.value = true
-}
 
-const deleteConnection = (appId: string, connectionId: string) => {
-  if (confirm('Are you sure you want to delete this connection?')) {
-    const app = applications.value.find(a => a.id === appId)
-    if (app) {
-      app.connections = app.connections.filter(c => c.id !== connectionId)
+  try {
+    const connections = group.connections
+
+    // Delete all connections in the group
+    const deletePromises = connections.map((connection) => deleteIntegration(connection.id))
+
+    const results = await Promise.all(deletePromises)
+
+    // Check if all deletes were successful
+    const allSuccess = results.every((r) => r.success)
+    if (allSuccess) {
+      showSuccess('Integration and all connections deleted successfully')
+    } else {
+      showError('Some connections failed to delete')
     }
+  } catch (err) {
+    showError('Failed to delete integration')
   }
 }
 
-const updateConnectionStatus = (appId: string, connectionId: string, status: string) => {
-  const app = applications.value.find(a => a.id === appId)
-  if (app) {
-    const connection = app.connections.find(c => c.id === connectionId)
-    if (connection) {
-      connection.status = status
+const updateStatus = async (appId: string, status: string) => {
+  try {
+    const result = await updateIntegrationStatus(
+      appId,
+      status.toLowerCase() as 'active' | 'inactive' | 'expired' | 'failed',
+    )
+    if (result.success) {
+      showSuccess('Status updated successfully')
+    } else {
+      showError(result.message || 'Failed to update status')
     }
+  } catch (err) {
+    showError('Failed to update status')
   }
 }
 
-const updateStatus = (appId: string, status: string) => {
-  const app = applications.value.find(a => a.id === appId)
-  if (app) {
-    app.status = status
-  }
-}
+const updateGroupStatus = async (group: any, status: string) => {
+  try {
+    const connections = group.connections
+    const statusLower = status.toLowerCase() as 'active' | 'inactive' | 'expired' | 'failed'
 
-const toggleConnectionStatusMenu = (connectionId: string) => {
-  activeConnectionMenu.value = activeConnectionMenu.value === connectionId ? null : connectionId
+    // Update all connections in the group
+    const updatePromises = connections.map((connection) =>
+      updateIntegrationStatus(connection.id, statusLower),
+    )
+
+    const results = await Promise.all(updatePromises)
+
+    // Check if all updates were successful
+    const allSuccess = results.every((r) => r.success)
+    if (allSuccess) {
+      showSuccess('All connections status updated successfully')
+      activeAppStatusMenu.value = null
+    } else {
+      showError('Some connections failed to update')
+    }
+  } catch (err) {
+    showError('Failed to update group status')
+  }
 }
 
 const toggleAppStatusMenu = (appId: string) => {
   activeAppStatusMenu.value = activeAppStatusMenu.value === appId ? null : appId
+}
+
+const getDropdownPosition = (groupId: string) => {
+  // Use nextTick to ensure DOM is updated
+  if (typeof window === 'undefined') return { top: '0', left: '0' }
+
+  // Find the button element and get its position
+  const button = document.querySelector(`[data-menu-trigger][data-group-id="${groupId}"]`)
+  if (!button) return { top: '0', left: '0' }
+
+  const rect = button.getBoundingClientRect()
+  return {
+    top: `${rect.bottom + 8}px`,
+    right: `${window.innerWidth - rect.right}px`,
+  }
 }
 
 // Global click listener to close menus
@@ -942,16 +1093,90 @@ const handleClickOutside = (event: MouseEvent) => {
 
   // If not on trigger, close all menus
   if (!isOnMenuTrigger) {
-    activeConnectionMenu.value = null
     activeAppStatusMenu.value = null
   }
 }
 
-onMounted(() => {
+// Handler for scroll/resize to update dropdown position
+const handleScrollOrResize = () => {
+  // Force Vue to recalculate dropdown position by triggering reactivity
+  if (activeAppStatusMenu.value) {
+    // This will trigger the getDropdownPosition function to recalculate
+    activeAppStatusMenu.value = activeAppStatusMenu.value
+  }
+}
+
+onMounted(async () => {
   document.addEventListener('click', handleClickOutside)
+  window.addEventListener('scroll', handleScrollOrResize)
+  window.addEventListener('resize', handleScrollOrResize)
+
+  // Fetch all necessary data
+  try {
+    await fetchMasterData() // Fetch providers, modules, agents
+    await fetchIntegrations() // Fetch integrations for the organization
+  } catch (err) {
+    console.error('Failed to load integrations:', err)
+    showError('Failed to load integrations')
+  }
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  window.removeEventListener('scroll', handleScrollOrResize)
+  window.removeEventListener('resize', handleScrollOrResize)
 })
+
+// Watch for error changes and show notification
+watch(error, (newError) => {
+  if (newError) {
+    showError(newError)
+  }
+})
+
+// Watch for success messages and show notification
+watch(successMessage, (newSuccess) => {
+  if (newSuccess) {
+    showSuccess(newSuccess)
+  }
+})
+
+// Watch for agent selection changes - reset module and provider selections (only when adding new, not editing)
+watch(
+  () => applicationForm.value.agent_id,
+  () => {
+    // Only reset if we're adding a new connection, not editing
+    if (!editingAppId.value) {
+      applicationForm.value.module_id = ''
+      applicationForm.value.module = ''
+      applicationForm.value.provider_id = ''
+      applicationForm.value.provider = ''
+    }
+  },
+)
+
+// Watch for module selection changes - reset provider selection (only when adding new, not editing)
+watch(
+  () => applicationForm.value.module_id,
+  () => {
+    // Only reset if we're adding a new connection, not editing
+    if (!editingAppId.value) {
+      applicationForm.value.provider_id = ''
+      applicationForm.value.provider = ''
+    }
+  },
+)
+
+// Watch for dropdown open/close and recalculate position
+watch(
+  () => activeAppStatusMenu.value,
+  () => {
+    // Force re-render to update dropdown position
+    if (activeAppStatusMenu.value) {
+      nextTick(() => {
+        // Position will be recalculated on next render
+      })
+    }
+  },
+)
 </script>
